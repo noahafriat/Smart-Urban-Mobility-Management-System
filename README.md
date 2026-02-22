@@ -12,3 +12,9 @@
 | **Jakson Rabinovitch** | 40285726 | Backend Developer |
 | **Paul Nasr** | 40282491 | Frontend Developer |
 | **Tala Khraim** | 40276410 | Frontend Developer |
+
+---
+
+### Tech Stack
+**Frontend**: Vue.js  
+**Backend**: Java Spring Boot
