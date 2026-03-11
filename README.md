@@ -16,5 +16,28 @@
 ---
 
 ### Tech Stack
-**Frontend**: Vue.js  
-**Backend**: Java Spring Boot
+**Frontend**: Vue 3 (Pinia, Vue Router, TypeScript)  
+**Backend**: Java Spring Boot 3
+
+---
+
+### How to Run
+
+#### 1. Start the Backend
+Open a terminal in the `backend` folder and use the Maven Wrapper:
+```bash
+cd backend
+./mvnw spring-boot:run
+```
+*The backend API will be available at `http://localhost:8080/api`*
+
+*(Note: If `JAVA_HOME` is not set, provide the path to your JDK, for example: `JAVA_HOME="/c/Program.../jbr" ./mvnw spring-boot:run`)*
+
+#### 2. Start the Frontend
+Open a new terminal in the `frontend` folder, install dependencies, and start the development server:
+```bash
+cd frontend
+npm install
+npm run dev
+```
+*The web app will be accessible at `http://localhost:5173`*
