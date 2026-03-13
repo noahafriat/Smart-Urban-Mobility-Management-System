@@ -50,7 +50,7 @@ public class UserRepository {
     private void seed() {
         User alice = new User("Alice Martin",   "alice@summs.ca", "password123", UserRole.CITIZEN);
         alice.setPreferredCity("Montreal");
-        alice.setPreferredMobilityType("BIKE");
+        alice.setPreferredMobilityType("All");
         alice.setPaymentInfo("VISA-4242");
         save(alice);
 

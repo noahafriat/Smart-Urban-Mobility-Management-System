@@ -20,7 +20,7 @@ const auth = useAuthStore()
         <h2>Your Commute</h2>
         <p>You can search for vehicles, view transit, and reserve parking.</p>
         <!-- Placeholders for Epic 2 & Epic 4 components -->
-        <div class="placeholder">Vehicle Search (Coming Soon)</div>
+        <RouterLink to="/vehicles" class="action-btn">Search Vehicles</RouterLink>
         <div class="placeholder">My Rentals (Coming Soon)</div>
       </div>
 
@@ -43,7 +43,6 @@ const auth = useAuthStore()
         <ul class="profile-list">
           <li><strong>Email:</strong> {{ auth.user?.email }}</li>
           <li v-if="auth.user?.phone"><strong>Phone:</strong> {{ auth.user?.phone }}</li>
-          <li><strong>ID:</strong> {{ auth.user?.id }}</li>
         </ul>
       </div>
     </main>
@@ -128,6 +127,23 @@ p {
   text-align: center;
   font-size: 0.9rem;
   font-weight: 600;
+}
+
+.action-btn {
+  display: block;
+  margin-top: 1.5rem;
+  padding: 0.85rem;
+  background: #3182ce;
+  color: white;
+  text-align: center;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.action-btn:hover {
+  background: #2b6cb0;
 }
 
 .profile-list {
