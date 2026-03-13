@@ -23,6 +23,13 @@ const router = createRouter({
       component: () => import('../views/LoginView.vue'),
     },
     {
+      // Epic 2: Vehicle Search
+      path: '/vehicles',
+      name: 'vehicles',
+      component: () => import('../views/VehicleSearchView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/dashboard',
       name: 'dashboard',
       component: () => import('../views/DashboardView.vue'),
