@@ -19,9 +19,9 @@ const auth = useAuthStore()
       <div class="card" v-if="auth.isCitizen">
         <h2>Your Commute</h2>
         <p>You can search for vehicles, view transit, and reserve parking.</p>
-        <!-- Placeholders for Epic 2 & Epic 4 components -->
-        <RouterLink to="/vehicles" class="action-btn">Search Vehicles</RouterLink>
-        <div class="placeholder">My Rentals (Coming Soon)</div>
+        <!-- Epic 2 Rental Components -->
+        <RouterLink to="/vehicles" class="action-btn mb">Search Vehicles</RouterLink>
+        <RouterLink to="/rentals" class="action-btn secondary">My Rentals</RouterLink>
       </div>
 
       <div class="card" v-if="auth.isProvider">
@@ -144,6 +144,21 @@ p {
 
 .action-btn:hover {
   background: #2b6cb0;
+}
+
+.action-btn.mb {
+  margin-bottom: 0.75rem;
+}
+
+.action-btn.secondary {
+  background: #edf2f7;
+  color: #2d3748;
+  margin-top: 0;
+  border: 1px solid #e2e8f0;
+}
+
+.action-btn.secondary:hover {
+  background: #e2e8f0;
 }
 
 .profile-list {

@@ -2,9 +2,13 @@
 import { ref, onMounted } from 'vue'
 import { useVehicleStore } from '../stores/vehicles'
 import { useAuthStore } from '../stores/auth'
+import { useRentalStore } from '../stores/rentals'
+import { useRouter } from 'vue-router'
 
 const vehicleStore = useVehicleStore()
 const auth = useAuthStore()
+const rentalStore = useRentalStore()
+const router = useRouter()
 
 const selectedCity = ref('All')
 const selectedType = ref('All')
@@ -29,6 +33,17 @@ function getTypeIcon(type: string) {
   if (type === 'SCOOTER') return '🛴'
   if (type === 'CAR') return '🚗'
   return '📍'
+}
+
+async function handleReserve(vehicleId: string) {
+  if (auth.user) {
+    try {
+      await rentalStore.reserve(auth.user.id, vehicleId)
+      router.push('/rentals')
+    } catch (e) {
+      alert('Failed to reserve. Another user may have just taken this vehicle.')
+    }
+  }
 }
 </script>
 
@@ -94,8 +109,12 @@ function getTypeIcon(type: string) {
         </div>
 
         <div class="v-footer">
-          <!-- Next Story: Vehicle Reservation -->
-          <button class="reserve-btn" disabled>Reserve (Coming Next Story)</button>
+          <button 
+            class="reserve-btn" 
+            :disabled="rentalStore.loading" 
+            @click="handleReserve(vehicle.id)">
+            Reserve Vehicle
+          </button>
         </div>
       </div>
     </div>
