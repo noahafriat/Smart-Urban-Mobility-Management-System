@@ -11,6 +11,7 @@ export interface User {
   preferredCity?: string
   preferredMobilityType?: string
   hasPaymentInfo?: boolean
+  paymentInfo?: string
 }
 
 // Pinia store for authenticated user state.

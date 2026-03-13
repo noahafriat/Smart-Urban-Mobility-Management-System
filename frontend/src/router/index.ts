@@ -30,6 +30,13 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      // Epic 2: Rental Lifecycle
+      path: '/rentals',
+      name: 'rentals',
+      component: () => import('../views/MyRentalsView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/dashboard',
       name: 'dashboard',
       component: () => import('../views/DashboardView.vue'),
