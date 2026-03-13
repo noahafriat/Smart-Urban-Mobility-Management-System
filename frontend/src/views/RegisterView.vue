@@ -38,7 +38,6 @@ async function submit() {
       role:     form.value.role,
       phone:    form.value.phone,
     })
-    // On success, redirect to home (login comes in next story)
     router.push('/')
   } catch (e: any) {
     errorMsg.value = typeof e === 'string' ? e : 'Registration failed. Please try again.'
