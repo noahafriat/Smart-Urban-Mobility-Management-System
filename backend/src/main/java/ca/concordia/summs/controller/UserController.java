@@ -14,10 +14,8 @@ public class UserController {
         this.userService = userService;
     }
 
-    /**
-     * POST /api/users/register
-     * Story: User Registration — any visitor can create an account.
-     */
+    // POST /api/users/register
+    // Create a new user account
     @PostMapping("/register")
     public ResponseEntity<Object> register(@RequestBody Map<String, String> body) {
         try {
@@ -32,10 +30,8 @@ public class UserController {
         }
     }
 
-    /**
-     * POST /api/users/login
-     * Story: User Authentication — validates credentials and returns user data.
-     */
+    // POST /api/users/login
+    // Authenticate a user and return user data
     @PostMapping("/login")
     public ResponseEntity<Object> login(@RequestBody Map<String, String> body) {
         String email    = body.get("email");
@@ -46,10 +42,8 @@ public class UserController {
                 .orElse(ResponseEntity.status(401).body(Map.of("error", "Invalid email or password.")));
     }
 
-    /**
-     * PUT /api/users/{id}/profile
-     * Story: Profile update — authenticated user updates their own profile.
-     */
+    // PUT /api/users/{id}/profile
+    // Update a user's profile
     @PutMapping("/{id}/profile")
     public ResponseEntity<Object> updateProfile(@PathVariable String id,
                                                  @RequestBody Map<String, String> body) {
@@ -60,10 +54,8 @@ public class UserController {
         }
     }
 
-    /**
-     * PUT /api/users/{id}/role
-     * Story: Role management — System Admin assigns roles.
-     */
+    // PUT /api/users/{id}/role
+    // Change a user's role (admin only)
     @PutMapping("/{id}/role")
     public ResponseEntity<Object> changeRole(@PathVariable String id,
                                               @RequestBody Map<String, String> body) {
@@ -74,9 +66,8 @@ public class UserController {
         }
     }
 
-    /**
-     * GET /api/users — System Admin lists all users.
-     */
+    // GET /api/users
+    // List all users
     @GetMapping
     public ResponseEntity<Object> getAllUsers() {
         return ResponseEntity.ok(userService.getAllUsers());
