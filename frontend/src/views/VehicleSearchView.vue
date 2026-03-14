@@ -28,10 +28,10 @@ function handleSearch() {
 }
 
 function getTypeIcon(type: string) {
-  if (type === 'BIKE') return 'BK'
-  if (type === 'SCOOTER') return 'SC'
-  if (type === 'CAR') return 'CR'
-  return 'VH'
+  if (type === 'BIKE') return '🚲'
+  if (type === 'SCOOTER') return '🛴'
+  if (type === 'CAR') return '🚗'
+  return '📍'
 }
 
 function getEnergyLabel(vehicle: Vehicle) {

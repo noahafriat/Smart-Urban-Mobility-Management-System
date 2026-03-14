@@ -217,9 +217,9 @@ function energyLabel(vehicle: Vehicle) {
 }
 
 function vehicleHeading(type: VehicleType) {
-  if (type === 'BIKE') return 'Bike'
-  if (type === 'SCOOTER') return 'Scooter'
-  return 'Car'
+  if (type === 'BIKE') return '🚲 Bike'
+  if (type === 'SCOOTER') return '🛴 Scooter'
+  return '🚗 Car'
 }
 </script>
 
