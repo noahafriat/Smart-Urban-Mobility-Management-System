@@ -25,7 +25,11 @@ public class User {
     private String paymentInfo;
 
     public User(String name, String email, String password, UserRole role) {
-        this.id       = UUID.randomUUID().toString();
+        this(UUID.randomUUID().toString(), name, email, password, role);
+    }
+
+    public User(String id, String name, String email, String password, UserRole role) {
+        this.id       = id;
         this.name     = name;
         this.email    = email;
         this.password = password;

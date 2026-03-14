@@ -36,7 +36,7 @@ public class RentalService extends RentalSubject {
         }
         
         // Mutate the vehicle state so others cannot reserve it
-        vehicle.setStatus(VehicleStatus.IN_USE);
+        vehicle.setStatus(VehicleStatus.RENTED);
         vehicleRepository.save(vehicle);
         
         Rental rental = new Rental(userId, vehicle);

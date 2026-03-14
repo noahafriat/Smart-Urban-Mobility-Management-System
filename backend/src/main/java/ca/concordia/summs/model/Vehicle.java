@@ -11,19 +11,33 @@ import java.util.UUID;
 public abstract class Vehicle {
     private final String id;
     private final String providerId;
+    private String vehicleCode;
     private VehicleType type;
     private VehicleStatus status;
     private String locationCity;
-    private double batteryLevel; // Used universally for e-bikes, scooters, and EVs
+    private String locationZone;
+    private double batteryLevel;
+    private double fuelLevel;
     private double basePrice;
     private double pricePerMinute;
+    private String pricingCategory;
+    private String maintenanceState;
+    private boolean visibleInSearch;
+    private boolean retired;
 
     public Vehicle(String providerId, VehicleType type, String locationCity) {
         this.id = UUID.randomUUID().toString();
         this.providerId = providerId;
+        this.vehicleCode = type.name().charAt(0) + "-" + this.id.substring(0, 8).toUpperCase();
         this.type = type;
         this.status = VehicleStatus.AVAILABLE;
         this.locationCity = locationCity;
-        this.batteryLevel = 100.0; // Default full battery
+        this.locationZone = "Central";
+        this.batteryLevel = 100.0;
+        this.fuelLevel = 0.0;
+        this.pricingCategory = "STANDARD";
+        this.maintenanceState = "READY";
+        this.visibleInSearch = true;
+        this.retired = false;
     }
 }

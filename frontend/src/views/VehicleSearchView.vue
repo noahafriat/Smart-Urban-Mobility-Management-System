@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useVehicleStore } from '../stores/vehicles'
+import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useRentalStore } from '../stores/rentals'
-import { useRouter } from 'vue-router'
+import { useVehicleStore, type Vehicle } from '../stores/vehicles'
 
 const vehicleStore = useVehicleStore()
 const auth = useAuthStore()
@@ -14,14 +14,13 @@ const selectedCity = ref('All')
 const selectedType = ref('All')
 
 onMounted(() => {
-  // Pre-fill search filters if the user has a profile preference
   if (auth.user?.preferredCity) {
     selectedCity.value = auth.user.preferredCity
   }
   if (auth.user?.preferredMobilityType) {
     selectedType.value = auth.user.preferredMobilityType
   }
-  handleSearch() // Perform initial search on page load
+  handleSearch()
 })
 
 function handleSearch() {
@@ -35,14 +34,19 @@ function getTypeIcon(type: string) {
   return '📍'
 }
 
+function getEnergyLabel(vehicle: Vehicle) {
+  if (vehicle.type === 'CAR') return `${vehicle.fuelLevel}% fuel`
+  return `${vehicle.batteryLevel}% battery`
+}
+
 async function handleReserve(vehicleId: string) {
-  if (auth.user) {
-    try {
-      await rentalStore.reserve(auth.user.id, vehicleId)
-      router.push('/rentals')
-    } catch (e) {
-      alert('Failed to reserve. Another user may have just taken this vehicle.')
-    }
+  if (!auth.user) return
+
+  try {
+    await rentalStore.reserve(auth.user.id, vehicleId)
+    router.push('/rentals')
+  } catch (error) {
+    window.alert('Failed to reserve. Another user may have just taken this vehicle.')
   }
 }
 </script>
@@ -77,11 +81,10 @@ async function handleReserve(vehicleId: string) {
       <button class="refresh-btn" @click="handleSearch">Refresh Feed</button>
     </div>
 
-    <!-- UI State Handling -->
     <div v-if="vehicleStore.loading" class="state-msg pulse">
       Scanning the area for vehicles...
     </div>
-    
+
     <div v-else-if="vehicleStore.error" class="state-msg error">
       {{ vehicleStore.error }}
     </div>
@@ -90,17 +93,16 @@ async function handleReserve(vehicleId: string) {
       No vehicles found matching your criteria. Try expanding the search!
     </div>
 
-    <!-- Vehicle Grid -->
     <div v-else class="vehicle-grid">
       <div v-for="vehicle in vehicleStore.availableVehicles" :key="vehicle.id" class="vehicle-card">
         <div class="v-header">
           <span class="v-icon">{{ getTypeIcon(vehicle.type) }}</span>
           <span class="v-type">{{ vehicle.type }}</span>
-          <span class="v-battery">{{ vehicle.batteryLevel }}% 🔋</span>
+          <span class="v-battery">{{ getEnergyLabel(vehicle) }}</span>
         </div>
-        
+
         <div class="v-body">
-          <p class="v-location"><strong>Location:</strong> {{ vehicle.locationCity }}</p>
+          <p class="v-location"><strong>Location:</strong> {{ vehicle.locationCity }} / {{ vehicle.locationZone }}</p>
           <div class="price-tags">
             <span class="tag base">Unlock: ${{ vehicle.basePrice.toFixed(2) }}</span>
             <span class="tag rate">${{ vehicle.pricePerMinute.toFixed(2) }}/min</span>
@@ -109,10 +111,11 @@ async function handleReserve(vehicleId: string) {
         </div>
 
         <div class="v-footer">
-          <button 
-            class="reserve-btn" 
-            :disabled="rentalStore.loading" 
-            @click="handleReserve(vehicle.id)">
+          <button
+            class="reserve-btn"
+            :disabled="rentalStore.loading"
+            @click="handleReserve(vehicle.id)"
+          >
             Reserve Vehicle
           </button>
         </div>
@@ -149,7 +152,7 @@ async function handleReserve(vehicleId: string) {
   background: white;
   padding: 1.5rem 2rem;
   border-radius: 16px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.02), 0 10px 15px rgba(0,0,0,0.03);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02), 0 10px 15px rgba(0, 0, 0, 0.03);
   display: flex;
   gap: 1.5rem;
   align-items: flex-end;
@@ -181,17 +184,6 @@ async function handleReserve(vehicleId: string) {
   outline: none;
   background-color: #f7fafc;
   cursor: pointer;
-  transition: all 0.2s;
-}
-
-.filter-group select:hover {
-  border-color: #cbd5e0;
-}
-
-.filter-group select:focus {
-  border-color: #3182ce;
-  background-color: white;
-  box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1);
 }
 
 .refresh-btn {
@@ -203,13 +195,7 @@ async function handleReserve(vehicleId: string) {
   font-weight: 600;
   font-size: 1rem;
   cursor: pointer;
-  transition: all 0.2s;
   height: max-content;
-}
-
-.refresh-btn:hover {
-  background: #e2e8f0;
-  transform: translateY(-1px);
 }
 
 .state-msg {
@@ -219,7 +205,7 @@ async function handleReserve(vehicleId: string) {
   font-size: 1.25rem;
   background: white;
   border-radius: 16px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
 }
 
 .state-msg.error {
@@ -233,8 +219,14 @@ async function handleReserve(vehicleId: string) {
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: .5; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
 }
 
 .vehicle-grid {
@@ -247,17 +239,10 @@ async function handleReserve(vehicleId: string) {
   background: white;
   border-radius: 16px;
   padding: 1.75rem;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.02), 0 10px 15px rgba(0,0,0,0.03);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02), 0 10px 15px rgba(0, 0, 0, 0.03);
   display: flex;
   flex-direction: column;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
   border: 1px solid #edf2f7;
-}
-
-.vehicle-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 10px 25px rgba(0,0,0,0.08);
-  border-color: #e2e8f0;
 }
 
 .v-header {
@@ -270,7 +255,15 @@ async function handleReserve(vehicleId: string) {
 }
 
 .v-icon {
-  font-size: 1.75rem;
+  min-width: 2.4rem;
+  min-height: 2.4rem;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #ebf4ff;
+  color: #2b6cb0;
+  font-size: 0.8rem;
+  font-weight: 800;
 }
 
 .v-type {
@@ -300,14 +293,11 @@ async function handleReserve(vehicleId: string) {
   margin-bottom: 1.25rem;
 }
 
-.v-location strong {
-  color: #2d3748;
-}
-
 .price-tags {
   display: flex;
   gap: 0.75rem;
   margin-bottom: 1.25rem;
+  flex-wrap: wrap;
 }
 
 .tag {
@@ -351,19 +341,11 @@ async function handleReserve(vehicleId: string) {
   font-weight: 700;
   font-size: 1rem;
   cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 4px 6px rgba(49, 130, 206, 0.2);
-}
-
-.reserve-btn:hover:not(:disabled) {
-  background: #2b6cb0;
-  box-shadow: 0 6px 12px rgba(49, 130, 206, 0.3);
 }
 
 .reserve-btn:disabled {
   background: #cbd5e0;
   color: #718096;
   cursor: not-allowed;
-  box-shadow: none;
 }
 </style>

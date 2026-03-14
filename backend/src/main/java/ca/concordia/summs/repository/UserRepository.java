@@ -57,7 +57,7 @@ public class UserRepository {
         User admin = new User("City Admin",     "admin@summs.ca", "admin123",    UserRole.CITY_ADMIN);
         save(admin);
 
-        User bixi  = new User("BIXI Operator",  "bixi@summs.ca",  "bixi123",     UserRole.MOBILITY_PROVIDER);
+        User bixi  = new User("demo-provider-id", "BIXI Operator", "bixi@summs.ca", "bixi123", UserRole.MOBILITY_PROVIDER);
         save(bixi);
 
         User sys   = new User("System Admin",   "sys@summs.ca",   "sys123",      UserRole.SYSTEM_ADMIN);

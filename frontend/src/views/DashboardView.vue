@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ProviderFleetManager from '../components/ProviderFleetManager.vue'
 import { useAuthStore } from '../stores/auth'
 
 const auth = useAuthStore()
@@ -15,7 +16,7 @@ const auth = useAuthStore()
       </div>
     </header>
 
-    <main class="dash-content">
+    <main class="dash-content" :class="{ 'provider-layout': auth.isProvider }">
       <div class="card" v-if="auth.isCitizen">
         <h2>Your Commute</h2>
         <p>You can search for vehicles, view transit, and reserve parking.</p>
@@ -24,11 +25,10 @@ const auth = useAuthStore()
         <RouterLink to="/rentals" class="action-btn secondary">My Rentals</RouterLink>
       </div>
 
-      <div class="card" v-if="auth.isProvider">
+      <div class="card provider-main-card" v-if="auth.isProvider">
         <h2>Fleet Overview</h2>
         <p>Manage your fleet of bikes, scooters, and cars.</p>
-        <!-- Placeholders for Epic 3 components -->
-        <div class="placeholder">Vehicle Management (Coming Soon)</div>
+        <ProviderFleetManager v-if="auth.user" :provider-id="auth.user.id" />
       </div>
 
       <div class="card" v-if="auth.isAdmin">
@@ -38,12 +38,18 @@ const auth = useAuthStore()
         <div class="placeholder">Analytics Dashboard (Coming Soon)</div>
       </div>
       
-      <div class="card">
+      <div class="card profile-card">
         <h2>Profile Details</h2>
-        <ul class="profile-list">
-          <li><strong>Email:</strong> {{ auth.user?.email }}</li>
-          <li v-if="auth.user?.phone"><strong>Phone:</strong> {{ auth.user?.phone }}</li>
-        </ul>
+        <div class="profile-list">
+          <div class="profile-row">
+            <span class="profile-label">Email</span>
+            <span class="profile-value">{{ auth.user?.email }}</span>
+          </div>
+          <div v-if="auth.user?.phone" class="profile-row">
+            <span class="profile-label">Phone</span>
+            <span class="profile-value">{{ auth.user?.phone }}</span>
+          </div>
+        </div>
       </div>
     </main>
   </div>
@@ -96,6 +102,11 @@ h1 {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 1.5rem;
+  align-items: start;
+}
+
+.dash-content.provider-layout {
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
 }
 
 .card {
@@ -103,6 +114,15 @@ h1 {
   padding: 1.5rem;
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+}
+
+.provider-main-card {
+  min-width: 0;
+}
+
+.profile-card {
+  padding: 1rem 1.1rem;
+  align-self: start;
 }
 
 h2 {
@@ -162,19 +182,37 @@ p {
 }
 
 .profile-list {
-  list-style: none;
-  padding: 0;
-  margin: 1rem 0 0;
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
 }
 
-.profile-list li {
-  padding: 0.75rem 0;
-  border-bottom: 1px solid #edf2f7;
-  color: #4a5568;
+.profile-row {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid #edf2f7;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.profile-label {
+  color: #718096;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+}
+
+.profile-value {
+  color: #2d3748;
   font-size: 0.95rem;
+  word-break: break-word;
 }
 
-.profile-list li:last-child {
-  border-bottom: none;
+@media (max-width: 900px) {
+  .dash-content.provider-layout {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
