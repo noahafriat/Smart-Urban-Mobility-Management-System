@@ -31,11 +31,27 @@ const auth = useAuthStore()
         <ProviderFleetManager v-if="auth.user" :provider-id="auth.user.id" />
       </div>
 
+      <!-- Shared Analytics card: both City Admin and System Admin see this -->
       <div class="card" v-if="auth.isAdmin">
         <h2>City Analytics</h2>
-        <p>Monitor mobility trends and parking utilization.</p>
-        <!-- Placeholders for Epic 4 components -->
-        <div class="placeholder">Analytics Dashboard (Coming Soon)</div>
+        <p>Monitor mobility trends, vehicle utilization, and parking occupancy.</p>
+        <RouterLink to="/analytics/transit" class="action-btn mb">Transit Analytics</RouterLink>
+        <RouterLink to="/analytics/rentals" class="action-btn mb secondary">Rental Analytics</RouterLink>
+        <RouterLink to="/analytics/parking" class="action-btn secondary">Parking Analytics</RouterLink>
+      </div>
+
+      <!-- System Admin exclusive card -->
+      <div class="card sys-admin-card" v-if="auth.isSysAdmin">
+        <h2>System Administration</h2>
+        <p>Manage user accounts, assign roles, and oversee platform-level settings.</p>
+        <RouterLink to="/admin/users" class="action-btn mb danger">Manage User Roles</RouterLink>
+      </div>
+
+      <!-- Provider Fleet Analytics card -->
+      <div class="card" v-if="auth.isProvider">
+        <h2>Fleet Analytics</h2>
+        <p>View rental trends and activity for your fleet.</p>
+        <RouterLink to="/analytics/rentals" class="action-btn">Rental Analytics</RouterLink>
       </div>
       
       <div class="card profile-card">
@@ -179,6 +195,30 @@ p {
 
 .action-btn.secondary:hover {
   background: #e2e8f0;
+}
+
+.action-btn.danger {
+  background: #c53030;
+  margin-top: 15px;
+}
+
+.action-btn.danger:hover {
+  background: #9b2c2c;
+}
+
+.sys-admin-card {
+  border-left: 4px solid #c53030;
+}
+
+.info-note {
+  margin-top: 1rem;
+  background: #fff5f5;
+  border: 1px solid #fed7d7;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  color: #742a2a;
+  line-height: 1.5;
 }
 
 .profile-list {

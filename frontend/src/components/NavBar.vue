@@ -21,6 +21,11 @@ function doLogout() {
       <div class="nav-links" v-if="auth.isLoggedIn">
         <RouterLink to="/dashboard">Dashboard</RouterLink>
         <RouterLink v-if="auth.isCitizen" to="/vehicles">Search Vehicles</RouterLink>
+        <RouterLink v-if="auth.isCitizen" to="/rentals">My Rentals</RouterLink>
+        <RouterLink v-if="auth.isAdmin" to="/analytics/transit">Transit</RouterLink>
+        <RouterLink v-if="auth.isAdmin || auth.isProvider" to="/analytics/rentals">Rentals</RouterLink>
+        <RouterLink v-if="auth.isAdmin" to="/analytics/parking">Parking</RouterLink>
+        <RouterLink v-if="auth.isSysAdmin" to="/admin/users" class="admin-link">Users</RouterLink>
       </div>
 
       <div class="nav-actions">
@@ -77,6 +82,15 @@ function doLogout() {
 
 .nav-links a:hover, .nav-links a.router-link-active {
   color: #2b6cb0;
+}
+
+.nav-links a.admin-link {
+  color: #c53030;
+  font-weight: 700;
+}
+
+.nav-links a.admin-link:hover {
+  color: #9b2c2c;
 }
 
 .nav-actions {
