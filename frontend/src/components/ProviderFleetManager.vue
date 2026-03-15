@@ -8,6 +8,7 @@ import {
   type VehicleStatus,
   type VehicleType,
 } from '../stores/vehicles'
+import { useAuthStore } from '../stores/auth'
 
 const props = defineProps<{
   providerId: string
@@ -17,22 +18,21 @@ const vehicleStore = useVehicleStore()
 
 const locationCatalog: Record<'Montreal' | 'Laval', string[]> = {
   Montreal: [
-    'Downtown',
-    'Old Montreal',
-    'Plateau-Mont-Royal',
-    'Griffintown',
-    'Rosemont',
-    'Jean-Talon Station',
-    'Berri-UQAM Station',
-    'Lionel-Groulx Station',
+    'Dock: McGill & Sherbrooke',
+    'Dock: Place des Arts',
+    'Dock: Guy-Concordia',
+    'Dock: Berri-UQAM',
+    'Station: Griffintown Surface Lot',
+    'Station: Griffintown Underground',
+    'FLEX Zone: Mile End',
+    'FLEX Zone: Old Montreal'
   ],
   Laval: [
-    'Montmorency Station',
-    'De la Concorde Station',
-    'Cartier Station',
-    'Centropolis',
-    'Chomedey',
-    'Laval-des-Rapides',
+    'Dock: Montmorency Station',
+    'Dock: Centropolis',
+    'Dock: Cartier Station',
+    'Station: Chomedey Reserved',
+    'FLEX Zone: Laval-des-Rapides'
   ],
 }
 
@@ -40,9 +40,14 @@ type ServiceCity = keyof typeof locationCatalog
 
 const serviceCities = Object.keys(locationCatalog) as ServiceCity[]
 
+const authStore = useAuthStore()
+const preferredType = authStore.user?.preferredMobilityType as VehicleType | undefined
+const defaultType = preferredType || 'SCOOTER'
+
 const filters = reactive<Required<ProviderFleetFilters>>({
   city: 'All',
-  type: 'All',
+  zone: 'All',
+  type: preferredType || 'All',
   status: 'All',
   includeHidden: true,
 })
@@ -51,15 +56,15 @@ const showForm = ref(false)
 const editingVehicleId = ref<string | null>(null)
 
 const form = reactive<VehiclePayload>({
-  type: 'BIKE',
+  type: defaultType,
   vehicleCode: '',
   locationCity: 'Montreal',
   locationZone: locationCatalog.Montreal[0]!,
   batteryLevel: 100,
   fuelLevel: 0,
-  basePrice: 5,
-  pricePerMinute: 0.25,
-  pricingCategory: 'STANDARD',
+  basePrice: 1,
+  pricePerMinute: 0.30,
+  pricingCategory: 'Standard Scooter',
   maintenanceState: 'READY',
   status: 'AVAILABLE',
   visibleInSearch: true,
@@ -68,11 +73,120 @@ const form = reactive<VehiclePayload>({
 
 const summary = computed(() => vehicleStore.providerSummary)
 const vehicles = computed(() => vehicleStore.providerFleet)
+
+const filterZoneOptions = computed(() => {
+  if (filters.city !== 'All') {
+    return locationCatalog[filters.city as ServiceCity] || []
+  }
+  return [...locationCatalog.Montreal, ...locationCatalog.Laval]
+})
+
+watch(() => filters.city, () => {
+  filters.zone = 'All'
+})
+
+const vehiclesByLocation = computed(() => {
+  const groups: Record<string, Vehicle[]> = {}
+  for (const v of vehicles.value) {
+    if (filters.zone !== 'All' && v.locationZone !== filters.zone) continue
+    const loc = `${v.locationCity} / ${v.locationZone}`
+    if (!groups[loc]) groups[loc] = []
+    groups[loc].push(v)
+  }
+  return groups
+})
+
+const isCarsExpanded = ref(false)
+
+const breakdownScooters = computed(() => summary.value.byType['Scooter'] || 0)
+const breakdownCarsTotal = computed(() => {
+  let total = 0
+  for (const [key, count] of Object.entries(summary.value.byType)) {
+    if (key !== 'Scooter') total += Number(count)
+  }
+  return total
+})
+const breakdownCarModels = computed(() => {
+  const models: Record<string, number> = {}
+  for (const [key, count] of Object.entries(summary.value.byType)) {
+    if (key !== 'Scooter') models[key] = Number(count)
+  }
+  return models
+})
+
+function toggleCars() {
+  isCarsExpanded.value = !isCarsExpanded.value
+}
+
 const cityOptions = computed(() => Object.keys(summary.value.byCity))
 const zoneOptions = computed<string[]>(() => {
   const city = form.locationCity as ServiceCity
-  return city ? [...locationCatalog[city]] : []
+  if (!city) return []
+  const zones = locationCatalog[city]
+  if (form.type === 'CAR') {
+    return zones.filter(z => !z.includes('Dock:'))
+  } else {
+    return zones.filter(z => z.includes('Dock:'))
+  }
 })
+
+const modelOptions = computed(() => {
+  return [
+    'Honda Civic', 'Toyota Corolla', 'Hyundai Elantra', 
+    'Toyota Camry', 'Tesla Model 3', 'BMW 3 Series', 'Ford F-150'
+  ]
+})
+
+const pricingOptions = computed(() => {
+  if (form.type === 'CAR') {
+    return ['Economy', 'Premium', 'Luxury', 'Truck']
+  }
+  return ['Standard Scooter', 'Premium Scooter']
+})
+
+watch(
+  () => form.type,
+  (newType) => {
+    if (editingVehicleId.value) return // Don't override when editing existing vehicle
+    form.locationZone = zoneOptions.value[0] ?? '' // Snap location to the correct type
+
+    if (newType === 'CAR') {
+      form.model = 'Honda Civic'
+      form.pricingCategory = 'Economy'
+    } else {
+      delete form.model
+      form.pricingCategory = 'Standard Scooter'
+    }
+  }
+)
+
+watch(
+  () => form.pricingCategory,
+  (newCat) => {
+    if (editingVehicleId.value) return // Let user override independently when editing
+    
+    // Auto-update price when pricing category changes on creation
+    if (newCat === 'Economy') {
+      form.basePrice = 15.00
+      form.pricePerMinute = 0.40
+    } else if (newCat === 'Premium') {
+      form.basePrice = 30.00
+      form.pricePerMinute = 1.20
+    } else if (newCat === 'Luxury') {
+      form.basePrice = 40.00
+      form.pricePerMinute = 1.50
+    } else if (newCat === 'Truck') {
+      form.basePrice = 35.00
+      form.pricePerMinute = 1.00
+    } else if (newCat === 'Standard Scooter') {
+      form.basePrice = 1.00
+      form.pricePerMinute = 0.30
+    } else if (newCat === 'Premium Scooter') {
+      form.basePrice = 1.00
+      form.pricePerMinute = 0.50
+    }
+  }
+)
 
 onMounted(() => {
   loadFleet()
@@ -95,19 +209,24 @@ async function loadFleet() {
 
 function resetForm() {
   editingVehicleId.value = null
-  form.type = 'BIKE'
+  form.type = defaultType
   form.vehicleCode = ''
   form.locationCity = 'Montreal'
   form.locationZone = locationCatalog.Montreal[0]!
   form.batteryLevel = 100
   form.fuelLevel = 0
-  form.basePrice = 5
-  form.pricePerMinute = 0.25
-  form.pricingCategory = 'STANDARD'
+  form.basePrice = form.type === 'CAR' ? 15.00 : 1.00
+  form.pricePerMinute = form.type === 'CAR' ? 0.40 : 0.30
+  form.pricingCategory = form.type === 'CAR' ? 'Economy' : 'Standard Scooter'
   form.maintenanceState = 'READY'
   form.status = 'AVAILABLE'
   form.visibleInSearch = true
   form.licensePlate = ''
+  if (form.type === 'CAR') {
+    form.model = 'Honda Civic'
+  } else {
+    delete form.model
+  }
 }
 
 function openCreateForm() {
@@ -134,6 +253,11 @@ function openEditForm(vehicle: Vehicle) {
   form.status = vehicle.status
   form.visibleInSearch = vehicle.visibleInSearch
   form.licensePlate = vehicle.licensePlate ?? ''
+  if (vehicle.type === 'CAR') {
+    form.model = vehicle.model ?? 'Honda Civic'
+  } else {
+    delete form.model
+  }
   showForm.value = true
 }
 
@@ -143,6 +267,13 @@ async function submitForm() {
     batteryLevel: form.type === 'CAR' ? 0 : Number(form.batteryLevel),
     fuelLevel: form.type === 'CAR' ? Number(form.fuelLevel) : 0,
     licensePlate: form.type === 'CAR' ? form.licensePlate?.trim() : '',
+  }
+
+  // Handle auto-generated logic if not editing
+  if (!editingVehicleId.value) {
+    const randomHex = Math.floor(Math.random() * 0xFFFFFF).toString(16).toUpperCase().padStart(6, '0')
+    const locPrefix = form.locationCity === 'Montreal' ? 'MTL' : 'LAV'
+    payload.vehicleCode = form.type === 'CAR' ? `CAR-${locPrefix}-${randomHex}` : `SCOOT-${locPrefix}-${randomHex}`
   }
 
   try {
@@ -176,17 +307,10 @@ async function restoreVehicle(vehicle: Vehicle) {
   }
 }
 
-async function relocateVehicle(vehicle: Vehicle) {
-  const city = window.prompt('New city', vehicle.locationCity)
-  if (!city) return
-  const zone = window.prompt('New zone/station', vehicle.locationZone)
-  if (!zone) return
-
-  try {
-    await vehicleStore.relocateVehicle(props.providerId, vehicle.id, city, zone, filters)
-  } catch (error: any) {
-    window.alert(error.message)
-  }
+function relocateVehicle(vehicle: Vehicle) {
+  // Can't auto relocate with strict catalogs via simple prompts easily anymore. 
+  // Let the user know they need to use the Edit panel now since we strictly validate zones.
+  window.alert('Please use the Edit Vehicle form to officially relocate a vehicle to a new dock or zone.')
 }
 
 async function deactivateVehicle(vehicle: Vehicle) {
@@ -211,15 +335,14 @@ function getStatusClass(status: VehicleStatus) {
 
 function energyLabel(vehicle: Vehicle) {
   if (vehicle.type === 'CAR') {
-    return `${vehicle.fuelLevel}% fuel`
+    return `${Math.round(vehicle.fuelLevel)}% fuel`
   }
-  return `${vehicle.batteryLevel}% battery`
+  return `${Math.round(vehicle.batteryLevel)}% battery`
 }
 
-function vehicleHeading(type: VehicleType) {
-  if (type === 'BIKE') return '🚲 Bike'
-  if (type === 'SCOOTER') return '🛴 Scooter'
-  return '🚗 Car'
+function vehicleHeading(vehicle: Vehicle) {
+  if (vehicle.type === 'SCOOTER') return '🛴 Scooter'
+  return `🚗 ${vehicle.model || 'Car'}`
 }
 </script>
 
@@ -256,6 +379,25 @@ function vehicleHeading(type: VehicleType) {
         <strong>{{ summary.issueFlaggedVehicles }}</strong>
         <p>{{ summary.lowEnergyVehicles }} low energy vehicles</p>
       </article>
+      <article class="summary-card breakdown-card">
+        <span class="eyebrow">Fleet Breakdown</span>
+        <div class="breakdown-list">
+          <div class="bd-row">
+            <span>Scooters</span>
+            <strong>{{ breakdownScooters }}</strong>
+          </div>
+          <div class="bd-row clickable" @click="toggleCars">
+            <span>Cars {{ isCarsExpanded ? '▼' : '▶' }}</span>
+            <strong>{{ breakdownCarsTotal }}</strong>
+          </div>
+          <template v-if="isCarsExpanded">
+            <div v-for="(count, model) in breakdownCarModels" :key="model" class="bd-row sub-row">
+              <span>{{ model }}</span>
+              <strong>{{ count }}</strong>
+            </div>
+          </template>
+        </div>
+      </article>
       <article class="summary-card">
         <span class="eyebrow">Inactive</span>
         <strong>{{ summary.inactiveVehicles }}</strong>
@@ -272,10 +414,16 @@ function vehicleHeading(type: VehicleType) {
         </select>
       </label>
       <label>
+        Zone or Station
+        <select v-model="filters.zone" @change="loadFleet">
+          <option value="All">All locations</option>
+          <option v-for="zone in filterZoneOptions" :key="zone" :value="zone">{{ zone }}</option>
+        </select>
+      </label>
+      <label v-if="!preferredType">
         Type
         <select v-model="filters.type" @change="loadFleet">
           <option value="All">All types</option>
-          <option value="BIKE">Bike</option>
           <option value="SCOOTER">Scooter</option>
           <option value="CAR">Car</option>
         </select>
@@ -308,17 +456,22 @@ function vehicleHeading(type: VehicleType) {
             <button class="modal-close" type="button" aria-label="Close form" @click="closeForm">x</button>
           </div>
           <form class="fleet-form" @submit.prevent="submitForm">
-            <label>
+            <label v-if="!preferredType">
               Vehicle type
               <select v-model="form.type" :disabled="!!editingVehicleId">
-                <option value="BIKE">Bike</option>
                 <option value="SCOOTER">Scooter</option>
                 <option value="CAR">Car</option>
               </select>
             </label>
-            <label>
+            <label v-if="editingVehicleId">
               Vehicle code
-              <input v-model="form.vehicleCode" required placeholder="BIKE-MTL-010" />
+              <input v-model="form.vehicleCode" disabled class="disabled-input" />
+            </label>
+            <label v-if="form.type === 'CAR'">
+              Make & Model
+              <select v-model="form.model" required>
+                <option v-for="mod in modelOptions" :key="mod" :value="mod">{{ mod }}</option>
+              </select>
             </label>
             <label>
               City
@@ -344,7 +497,9 @@ function vehicleHeading(type: VehicleType) {
             </label>
             <label>
               Pricing category
-              <input v-model="form.pricingCategory" required placeholder="STANDARD" />
+              <select v-model="form.pricingCategory" required>
+                <option v-for="cat in pricingOptions" :key="cat" :value="cat">{{ cat }}</option>
+              </select>
             </label>
             <label>
               Base price
@@ -389,11 +544,14 @@ function vehicleHeading(type: VehicleType) {
     <div v-else-if="vehicleStore.fleetLoading" class="state-msg">Loading fleet data...</div>
     <div v-else-if="vehicles.length === 0" class="state-msg">No vehicles match the current fleet filters.</div>
 
-    <div v-else class="fleet-grid">
-      <article v-for="vehicle in vehicles" :key="vehicle.id" class="vehicle-card">
+    <div v-else class="fleet-locations">
+      <div v-for="(locVehicles, location) in vehiclesByLocation" :key="location" class="location-group">
+        <h3 class="location-heading">{{ location }}</h3>
+        <div class="fleet-grid">
+          <article v-for="vehicle in locVehicles" :key="vehicle.id" class="vehicle-card">
         <div class="card-header">
           <div>
-            <span class="card-type">{{ vehicleHeading(vehicle.type) }}</span>
+            <span class="card-type">{{ vehicleHeading(vehicle) }}</span>
             <h3>{{ vehicle.vehicleCode }}</h3>
           </div>
           <span class="status-pill" :class="getStatusClass(vehicle.status)">{{ vehicle.status }}</span>
@@ -452,6 +610,8 @@ function vehicleHeading(type: VehicleType) {
           </button>
         </div>
       </article>
+        </div>
+      </div>
     </div>
   </section>
 </template>
@@ -510,6 +670,56 @@ function vehicleHeading(type: VehicleType) {
   color: #506274;
 }
 
+.breakdown-card {
+  padding: 0.9rem 1.1rem;
+}
+
+.breakdown-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+}
+
+.bd-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  color: #16324f;
+  padding-bottom: 0.2rem;
+  border-bottom: 1px dashed #d5e4f3;
+}
+
+.bd-row:last-child {
+  border-bottom: none;
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.clickable:hover {
+  background: rgba(0,0,0,0.02);
+}
+
+.sub-row {
+  padding-left: 1rem;
+  font-size: 0.85rem;
+  color: #506274;
+}
+
+.location-group {
+  margin-bottom: 2rem;
+}
+
+.location-heading {
+  margin-bottom: 1rem;
+  font-size: 1.15rem;
+  color: #16324f;
+  padding-bottom: 0.4rem;
+  border-bottom: 2px solid #e2e8f0;
+}
+
 .eyebrow {
   text-transform: uppercase;
   font-size: 0.72rem;
@@ -565,6 +775,12 @@ select {
   padding: 0.8rem 0.9rem;
   font-size: 0.95rem;
   background: #f8fafc;
+}
+
+input[disabled], select[disabled], .disabled-input {
+  background: #f1f5f9;
+  color: #94a3b8;
+  cursor: not-allowed;
 }
 
 .checkbox {

@@ -8,7 +8,10 @@ import { useAnalyticsStore } from '../stores/analytics'
 
 const store = useAnalyticsStore()
 
-onMounted(() => store.fetchTransit())
+onMounted(() => {
+  store.fetchTransit()
+  store.fetchGateway()
+})
 </script>
 
 <template>
@@ -22,6 +25,89 @@ onMounted(() => store.fetchTransit())
     <div v-else-if="store.error" class="state-msg error">{{ store.error }}</div>
 
     <template v-else-if="store.transitData">
+
+      <!-- ══ RENTAL BUSINESS METRICS (Demo Panel 1) ══ -->
+      <section class="demo-panel rental-panel">
+        <div class="demo-panel-header">
+          <div>
+            <span class="demo-tag">Rental Analytics</span>
+            <h2>Live Rental Business Metrics</h2>
+            <p>Domain layer processing raw rental events into actionable metrics.</p>
+          </div>
+        </div>
+        <div class="demo-kpi-row">
+          <div class="demo-kpi orange">
+            <span class="demo-kpi-label">Active Rentals</span>
+            <strong class="demo-kpi-value">{{ store.transitData.activeRentals }}</strong>
+            <span class="demo-kpi-sub">vehicles in use right now</span>
+          </div>
+          <div class="demo-kpi blue">
+            <span class="demo-kpi-label">Today's Trips</span>
+            <strong class="demo-kpi-value">{{ store.transitData.todayTrips }}</strong>
+            <span class="demo-kpi-sub">completed trips today</span>
+          </div>
+          <div class="demo-kpi green" v-if="Object.keys(store.transitData.revenueByCity).length > 0">
+            <span class="demo-kpi-label">Revenue per City</span>
+            <div class="city-rev-list">
+              <div v-for="(rev, city) in store.transitData.revenueByCity" :key="city" class="city-rev-row">
+                <span>{{ city }}</span>
+                <strong>${{ rev.toFixed(2) }}</strong>
+              </div>
+            </div>
+          </div>
+          <div class="demo-kpi green" v-else>
+            <span class="demo-kpi-label">Revenue per City</span>
+            <strong class="demo-kpi-value">—</strong>
+            <span class="demo-kpi-sub">complete a rental to see data</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══ BIXI GATEWAY HEALTH (Demo Panel 2) ══ -->
+      <section class="demo-panel gateway-panel">
+        <div class="demo-panel-header">
+          <div>
+            <span class="demo-tag gateway">External Service</span>
+            <h2>BIXI Montréal Gateway Health</h2>
+            <p>Live probe of the BIXI GBFS API — measures connectivity and data sync.</p>
+          </div>
+          <button class="refresh-gateway-btn" :disabled="store.gatewayLoading" @click="store.fetchGateway()">
+            {{ store.gatewayLoading ? 'Checking…' : '↻ Re-check' }}
+          </button>
+        </div>
+
+        <div v-if="store.gatewayLoading" class="gateway-loading">Probing BIXI API…</div>
+        <div v-else-if="store.gatewayData" class="gateway-body">
+          <div class="status-indicator" :class="store.gatewayData.status.toLowerCase()">
+            <span class="status-dot"></span>
+            <span class="status-text">{{ store.gatewayData.status }}</span>
+          </div>
+          <div class="gateway-stats">
+            <div class="gw-stat">
+              <span class="gw-stat-label">Response Time</span>
+              <strong class="gw-stat-value" :class="store.gatewayData.responseMs > 1000 ? 'slow' : ''">
+                {{ store.gatewayData.responseMs }} ms
+              </strong>
+            </div>
+            <div class="gw-stat" v-if="store.gatewayData.totalStations">
+              <span class="gw-stat-label">Stations Synced</span>
+              <strong class="gw-stat-value">{{ store.gatewayData.totalStations }}</strong>
+            </div>
+            <div class="gw-stat" v-if="store.gatewayData.activeStations">
+              <span class="gw-stat-label">Active Stations</span>
+              <strong class="gw-stat-value">{{ store.gatewayData.activeStations }}</strong>
+            </div>
+            <div class="gw-stat" v-if="store.gatewayData.bikesAvailable">
+              <span class="gw-stat-label">Bikes Available</span>
+              <strong class="gw-stat-value">{{ store.gatewayData.bikesAvailable }}</strong>
+            </div>
+          </div>
+          <div v-if="store.gatewayData.syncedAt" class="synced-at">
+            Last synced: {{ new Date(store.gatewayData.syncedAt).toLocaleTimeString() }}
+          </div>
+          <div v-if="store.gatewayData.error" class="gw-error">{{ store.gatewayData.error }}</div>
+        </div>
+      </section>
       <!-- KPI Row -->
       <div class="kpi-grid">
         <div class="kpi-card blue">
@@ -104,7 +190,7 @@ onMounted(() => store.fetchTransit())
 
       <!-- Observer Event Log from Singleton AnalyticsEngine -->
       <section class="section-card">
-        <h2>System Event Log <span class="badge">Singleton Observer</span></h2>
+        <h2>System Event Log</h2>
         <div v-if="store.transitData.recentEvents.length === 0" class="empty-msg">No events recorded yet. Complete a rental to populate this.</div>
         <ul v-else class="event-log">
           <li v-for="(evt, i) in [...store.transitData.recentEvents].reverse()" :key="i">{{ evt }}</li>
@@ -189,6 +275,212 @@ function barWidthMap(key: string, map: Record<string, number>): string {
   font-size: 2rem;
   font-weight: 800;
   color: #0f172a;
+}
+
+/* ── Demo Panels ─────────────────────────────────────── */
+.demo-panel {
+  background: #fff;
+  border: 2px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 1.5rem;
+  display: grid;
+  gap: 1.25rem;
+}
+
+.rental-panel { border-color: #bfdbfe; background: linear-gradient(160deg, #f0f9ff, #fff); }
+.gateway-panel { border-color: #bbf7d0; background: linear-gradient(160deg, #f0fdf4, #fff); }
+
+.demo-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.demo-panel-header h2 {
+  margin: 0.25rem 0 0.2rem;
+  font-size: 1.15rem;
+  color: #0f172a;
+}
+
+.demo-panel-header p {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #64748b;
+}
+
+.demo-tag {
+  display: inline-block;
+  background: #dbeafe;
+  color: #1d4ed8;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.demo-tag.gateway {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.demo-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.demo-kpi {
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.demo-kpi.orange { background: #fff7ed; border: 1px solid #fed7aa; }
+.demo-kpi.blue   { background: #eff6ff; border: 1px solid #bfdbfe; }
+.demo-kpi.green  { background: #f0fdf4; border: 1px solid #bbf7d0; }
+
+.demo-kpi-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #64748b;
+}
+
+.demo-kpi-value {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1;
+}
+
+.demo-kpi-sub {
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.city-rev-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+
+.city-rev-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.92rem;
+  color: #0f172a;
+  font-weight: 500;
+}
+
+/* Gateway panel */
+.refresh-gateway-btn {
+  padding: 0.5rem 1rem;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 8px;
+  color: #166534;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 0.88rem;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+.refresh-gateway-btn:hover:not(:disabled) { background: #dcfce7; }
+.refresh-gateway-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.gateway-loading {
+  color: #64748b;
+  font-size: 0.9rem;
+  animation: pulse 2s infinite;
+}
+
+.gateway-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 1rem;
+  width: fit-content;
+}
+
+.status-indicator.up     { background: #dcfce7; color: #166534; }
+.status-indicator.degraded { background: #fef3c7; color: #92400e; }
+.status-indicator.down   { background: #fee2e2; color: #991b1b; }
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.status-indicator.up .status-dot     { background: #22c55e; box-shadow: 0 0 6px #22c55e; animation: pulse-dot 2s infinite; }
+.status-indicator.degraded .status-dot { background: #f59e0b; }
+.status-indicator.down .status-dot   { background: #ef4444; }
+
+@keyframes pulse-dot {
+  0%, 100% { box-shadow: 0 0 4px #22c55e; }
+  50% { box-shadow: 0 0 12px #22c55e; }
+}
+
+.gateway-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.gw-stat {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0.65rem 1rem;
+  min-width: 120px;
+}
+
+.gw-stat-label {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+  font-weight: 700;
+  margin-bottom: 0.2rem;
+}
+
+.gw-stat-value {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.gw-stat-value.slow { color: #f97316; }
+
+.synced-at {
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.gw-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.85rem;
+  color: #991b1b;
 }
 
 .two-col {

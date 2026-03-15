@@ -60,7 +60,10 @@ public class VehicleService {
         Map<String, Long> byStatus = fleet.stream()
                 .collect(Collectors.groupingBy(vehicle -> vehicle.getStatus().name(), TreeMap::new, Collectors.counting()));
         Map<String, Long> byType = fleet.stream()
-                .collect(Collectors.groupingBy(vehicle -> vehicle.getType().name(), TreeMap::new, Collectors.counting()));
+                .collect(Collectors.groupingBy(vehicle -> {
+                    if (vehicle.getType() == VehicleType.CAR && vehicle.getModel() != null) return vehicle.getModel();
+                    return "Scooter";
+                }, TreeMap::new, Collectors.counting()));
         Map<String, Long> byCity = fleet.stream()
                 .collect(Collectors.groupingBy(Vehicle::getLocationCity, TreeMap::new, Collectors.counting()));
 
@@ -170,6 +173,9 @@ public class VehicleService {
 
         if (payload.containsKey("vehicleCode")) {
             vehicle.setVehicleCode(requireText(payload.get("vehicleCode"), "Vehicle code is required."));
+        }
+        if (payload.containsKey("model")) {
+            vehicle.setModel(requireText(payload.get("model"), "Model is required."));
         }
         if (payload.containsKey("locationCity")) {
             vehicle.setLocationCity(requireText(payload.get("locationCity"), "Location city is required."));

@@ -25,9 +25,15 @@ const auth = useAuthStore()
         <RouterLink to="/rentals" class="action-btn secondary">My Rentals</RouterLink>
       </div>
 
+      <div class="card" v-if="auth.isCitizen">
+        <h2>🚲 BIXI Live Availability</h2>
+        <p>See real-time bike counts at every active BIXI station across Montréal.</p>
+        <RouterLink to="/bixi" class="action-btn" style="background: #16a34a;">View BIXI Stations</RouterLink>
+      </div>
+
       <div class="card provider-main-card" v-if="auth.isProvider">
         <h2>Fleet Overview</h2>
-        <p>Manage your fleet of bikes, scooters, and cars.</p>
+        <p>Manage your fleet of scooters and cars.</p>
         <ProviderFleetManager v-if="auth.user" :provider-id="auth.user.id" />
       </div>
 

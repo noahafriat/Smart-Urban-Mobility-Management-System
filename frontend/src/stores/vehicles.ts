@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { api } from '../api'
 
-export type VehicleType = 'BIKE' | 'SCOOTER' | 'CAR'
+export type VehicleType = 'SCOOTER' | 'CAR'
 export type VehicleStatus = 'AVAILABLE' | 'RESERVED' | 'RENTED' | 'MAINTENANCE' | 'INACTIVE'
 
 export interface Vehicle {
@@ -22,6 +22,7 @@ export interface Vehicle {
   visibleInSearch: boolean
   retired: boolean
   licensePlate?: string
+  model?: string
 }
 
 export interface FleetSummary {
@@ -40,6 +41,7 @@ export interface FleetSummary {
 
 export interface ProviderFleetFilters {
   city?: string
+  zone?: string
   type?: string
   status?: string
   includeHidden?: boolean
@@ -59,6 +61,7 @@ export interface VehiclePayload {
   status: VehicleStatus
   visibleInSearch: boolean
   licensePlate?: string
+  model?: string
 }
 
 const defaultSummary = (): FleetSummary => ({
@@ -79,6 +82,8 @@ export const useVehicleStore = defineStore('vehicles', () => {
   const loading = ref(false)
   const availableVehicles = ref<Vehicle[]>([])
   const error = ref<string | null>(null)
+
+  const selectedVehicle = ref<Vehicle | null>(null)
 
   const fleetLoading = ref(false)
   const fleetSaving = ref(false)
@@ -105,6 +110,20 @@ export const useVehicleStore = defineStore('vehicles', () => {
     }
   }
 
+  async function fetchVehicleById(id: string) {
+    loading.value = true
+    error.value = null
+    try {
+      const res = await api.get(`/vehicles/${id}`)
+      selectedVehicle.value = res.data as Vehicle
+    } catch (e: any) {
+      error.value = 'Failed to load vehicle details.'
+      console.error(e)
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function fetchProviderFleet(providerId: string, filters: ProviderFleetFilters = {}) {
     fleetLoading.value = true
     fleetError.value = null
@@ -119,7 +138,7 @@ export const useVehicleStore = defineStore('vehicles', () => {
       providerFleet.value = res.data as Vehicle[]
     } catch (e: any) {
       fleetError.value = e.response?.data?.error ?? 'Failed to load provider fleet.'
-      throw new Error(fleetError.value)
+      throw new Error(fleetError.value ?? 'Unknown error')
     } finally {
       fleetLoading.value = false
     }
@@ -131,7 +150,7 @@ export const useVehicleStore = defineStore('vehicles', () => {
       providerSummary.value = res.data as FleetSummary
     } catch (e: any) {
       fleetError.value = e.response?.data?.error ?? 'Failed to load fleet summary.'
-      throw new Error(fleetError.value)
+      throw new Error(fleetError.value ?? 'Unknown error')
     }
   }
 
@@ -207,7 +226,7 @@ export const useVehicleStore = defineStore('vehicles', () => {
       await action()
     } catch (e: any) {
       fleetError.value = e.response?.data?.error ?? e.message ?? 'Fleet update failed.'
-      throw new Error(fleetError.value)
+      throw new Error(fleetError.value ?? 'Unknown error')
     } finally {
       fleetSaving.value = false
     }
@@ -215,6 +234,7 @@ export const useVehicleStore = defineStore('vehicles', () => {
 
   return {
     availableVehicles,
+    selectedVehicle,
     loading,
     error,
     providerFleet,
@@ -223,6 +243,7 @@ export const useVehicleStore = defineStore('vehicles', () => {
     fleetSaving,
     fleetError,
     searchVehicles,
+    fetchVehicleById,
     fetchProviderFleet,
     fetchProviderSummary,
     refreshProviderFleetDashboard,

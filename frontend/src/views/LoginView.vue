@@ -77,7 +77,8 @@ function demoLogin(demoEmail: string, demoPass: string) {
         <p class="demo-title">Test Accounts:</p>
         <div class="chip-container">
           <button @click="demoLogin('alice@summs.ca', 'password123')" type="button" class="chip citizen">Citizen</button>
-          <button @click="demoLogin('bixi@summs.ca', 'bixi123')" type="button" class="chip provider">Bike Provider</button>
+          <button @click="demoLogin('cars@summs.ca', 'cars123')" type="button" class="chip provider">Car Provider</button>
+          <button @click="demoLogin('scooters@summs.ca', 'scooters123')" type="button" class="chip provider">Scooter Provider</button>
           <button @click="demoLogin('admin@summs.ca', 'admin123')" type="button" class="chip admin">City Admin</button>
           <button @click="demoLogin('sys@summs.ca', 'sys123')" type="button" class="chip sys">Sys Admin</button>
         </div>

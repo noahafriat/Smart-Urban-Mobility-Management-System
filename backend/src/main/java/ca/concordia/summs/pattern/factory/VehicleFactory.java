@@ -11,8 +11,6 @@ public class VehicleFactory {
 
     public static Vehicle createVehicle(VehicleType type, String providerId, String locationCity) {
         switch (type) {
-            case BIKE:
-                return new Bike(providerId, locationCity);
             case SCOOTER:
                 return new Scooter(providerId, locationCity);
             case CAR:

@@ -17,7 +17,7 @@ public class VehicleController {
     }
 
     /**
-     * GET /api/vehicles/search?city=Montreal&type=BIKE
+     * GET /api/vehicles/search?city=Montreal&type=SCOOTER
      * Story: Vehicle Search — filters the available fleet.
      */
     @GetMapping("/search")
@@ -26,6 +26,13 @@ public class VehicleController {
             @RequestParam(required = false) String type) {
         
         return ResponseEntity.ok(vehicleService.searchVehicles(city, type));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Object> getVehicleById(@PathVariable String id) {
+        return vehicleService.getVehicle(id)
+                .<ResponseEntity<Object>>map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @GetMapping("/provider/{providerId}")

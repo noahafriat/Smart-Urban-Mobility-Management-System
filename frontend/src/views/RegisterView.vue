@@ -13,6 +13,7 @@ const form = ref({
   confirmPassword: '',
   phone: '',
   role: 'CITIZEN',
+  preferredMobilityType: 'CAR',
 })
 const errorMsg = ref('')
 const loading  = ref(false)
@@ -37,8 +38,11 @@ async function submit() {
       password: form.value.password,
       role:     form.value.role,
       phone:    form.value.phone,
+      preferredMobilityType: form.value.role === 'MOBILITY_PROVIDER' ? form.value.preferredMobilityType : undefined,
     })
-    router.push('/')
+    // Ensure they know to log in with their new credentials
+    window.alert('Account created successfully! Please log in.')
+    router.push('/login')
   } catch (e: any) {
     errorMsg.value = typeof e === 'string' ? e : 'Registration failed. Please try again.'
   } finally {
@@ -99,6 +103,14 @@ async function submit() {
             <option value="CITIZEN">Citizen / Commuter</option>
             <option value="MOBILITY_PROVIDER">Mobility Service Provider</option>
             <option value="CITY_ADMIN">City Administrator</option>
+          </select>
+        </div>
+
+        <div v-if="form.role === 'MOBILITY_PROVIDER'" class="field">
+          <label for="reg-provider-type">Provider Type</label>
+          <select id="reg-provider-type" v-model="form.preferredMobilityType">
+            <option value="CAR">Car Provider</option>
+            <option value="SCOOTER">Scooter Provider</option>
           </select>
         </div>
 
