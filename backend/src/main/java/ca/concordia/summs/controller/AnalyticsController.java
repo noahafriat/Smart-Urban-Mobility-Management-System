@@ -1,6 +1,7 @@
 package ca.concordia.summs.controller;
 
 import ca.concordia.summs.service.AnalyticsService;
+import ca.concordia.summs.service.BixiGatewayService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,9 +15,12 @@ import org.springframework.web.bind.annotation.*;
 public class AnalyticsController {
 
     private final AnalyticsService analyticsService;
+    private final BixiGatewayService bixiGatewayService;
 
-    public AnalyticsController(AnalyticsService analyticsService) {
+    public AnalyticsController(AnalyticsService analyticsService,
+                               BixiGatewayService bixiGatewayService) {
         this.analyticsService = analyticsService;
+        this.bixiGatewayService = bixiGatewayService;
     }
 
     /**
@@ -49,5 +53,22 @@ public class AnalyticsController {
     @GetMapping("/parking")
     public ResponseEntity<Object> getParkingAnalytics() {
         return ResponseEntity.ok(analyticsService.getParkingAnalytics());
+    }
+    /**
+     * Gateway / Service-Level Analytic — probes the live BIXI GBFS API.
+     * GET /api/analytics/gateway
+     */
+    @GetMapping("/gateway")
+    public ResponseEntity<Object> getGatewayHealth() {
+        return ResponseEntity.ok(bixiGatewayService.checkGateway());
+    }
+
+    /**
+     * Citizen-facing: live BIXI station feed with available bikes.
+     * GET /api/analytics/bixi-stations
+     */
+    @GetMapping("/bixi-stations")
+    public ResponseEntity<Object> getBixiStations() {
+        return ResponseEntity.ok(bixiGatewayService.getAvailableStations());
     }
 }

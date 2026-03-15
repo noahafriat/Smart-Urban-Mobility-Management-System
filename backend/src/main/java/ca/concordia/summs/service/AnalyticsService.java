@@ -44,11 +44,30 @@ public class AnalyticsService {
                 .filter(r -> r.getStatus() == RentalStatus.COMPLETED || r.getStatus() == RentalStatus.PAID)
                 .toList();
 
+        // Currently active (live) rentals — key business metric #1
+        long activeRentals = all.stream()
+                .filter(r -> r.getStatus() == RentalStatus.ACTIVE)
+                .count();
+
+        // Trips completed today — key business metric #2
+        java.time.LocalDate today = java.time.LocalDate.now();
+        long todayTrips = completed.stream()
+                .filter(r -> r.getEndTime() != null && r.getEndTime().toLocalDate().equals(today))
+                .count();
+
         // Total trips
         long totalTrips = completed.size();
 
         // Revenue
         double totalRevenue = completed.stream().mapToDouble(Rental::getTotalCost).sum();
+
+        // Revenue per city — key business metric #3
+        Map<String, Double> revenueByCity = completed.stream()
+                .collect(Collectors.groupingBy(
+                        r -> r.getVehicle().getLocationCity(),
+                        TreeMap::new,
+                        Collectors.summingDouble(Rental::getTotalCost)));
+        revenueByCity.replaceAll((k, v) -> Math.round(v * 100.0) / 100.0);
 
         // Average trip duration in minutes
         double avgDurationMinutes = completed.stream()
@@ -59,7 +78,7 @@ public class AnalyticsService {
 
         // Trips per vehicle type
         Map<String, Long> tripsByType = completed.stream()
-                .collect(Collectors.groupingBy(r -> r.getVehicle().getType().name(),
+                .collect(Collectors.groupingBy(r -> getVehicleModelOrScooter(r.getVehicle()),
                         TreeMap::new, Collectors.counting()));
 
         // Trips per city
@@ -81,6 +100,9 @@ public class AnalyticsService {
         List<String> recentEvents = eventLog.subList(Math.max(0, eventLog.size() - 20), eventLog.size());
 
         Map<String, Object> result = new LinkedHashMap<>();
+        result.put("activeRentals", activeRentals);
+        result.put("todayTrips", todayTrips);
+        result.put("revenueByCity", revenueByCity);
         result.put("totalTrips", totalTrips);
         result.put("totalRevenue", Math.round(totalRevenue * 100.0) / 100.0);
         result.put("avgTripDurationMinutes", Math.round(avgDurationMinutes * 10.0) / 10.0);
@@ -120,7 +142,7 @@ public class AnalyticsService {
         // Revenue by vehicle type
         Map<String, Double> revenueByType = finished.stream()
                 .collect(Collectors.groupingBy(
-                        r -> r.getVehicle().getType().name(),
+                        r -> getVehicleModelOrScooter(r.getVehicle()),
                         TreeMap::new,
                         Collectors.summingDouble(Rental::getTotalCost)));
         revenueByType.replaceAll((k, v) -> Math.round(v * 100.0) / 100.0);
@@ -128,7 +150,7 @@ public class AnalyticsService {
         // Rentals by vehicle type
         Map<String, Long> rentalsByType = scope.stream()
                 .collect(Collectors.groupingBy(
-                        r -> r.getVehicle().getType().name(), TreeMap::new, Collectors.counting()));
+                        r -> getVehicleModelOrScooter(r.getVehicle()), TreeMap::new, Collectors.counting()));
 
         // Rentals by city
         Map<String, Long> rentalsByCity = scope.stream()
@@ -207,5 +229,12 @@ public class AnalyticsService {
         result.put("occupancyRate", occupancyRate);
         result.put("maintenancePerCity", maintenancePerCity);
         return result;
+    }
+
+    private String getVehicleModelOrScooter(Vehicle vehicle) {
+        if (vehicle.getType() == ca.concordia.summs.model.VehicleType.CAR && vehicle.getModel() != null) {
+            return vehicle.getModel();
+        }
+        return "Scooter";
     }
 }

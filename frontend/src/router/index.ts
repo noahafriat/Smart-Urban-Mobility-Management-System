@@ -30,10 +30,24 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      // Vehicle Reservation Confirmation
+      path: '/vehicles/:id/reserve',
+      name: 'vehicle-reserve',
+      component: () => import('../views/VehicleReservationView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       // Epic 2: Rental Lifecycle
       path: '/rentals',
       name: 'rentals',
       component: () => import('../views/MyRentalsView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      // BIXI Live Bike Availability (Citizens)
+      path: '/bixi',
+      name: 'bixi',
+      component: () => import('../views/BixiStationsView.vue'),
       meta: { requiresAuth: true },
     },
     {

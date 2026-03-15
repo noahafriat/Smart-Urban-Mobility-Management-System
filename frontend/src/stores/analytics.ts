@@ -4,6 +4,9 @@ import { api } from '../api'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 export interface TransitAnalytics {
+  activeRentals: number
+  todayTrips: number
+  revenueByCity: Record<string, number>
   totalTrips: number
   totalRevenue: number
   avgTripDurationMinutes: number
@@ -14,6 +17,18 @@ export interface TransitAnalytics {
   fleetMaintenance: number
   totalUsers: number
   recentEvents: string[]
+}
+
+export interface GatewayData {
+  provider: string
+  endpoint: string
+  status: 'UP' | 'DEGRADED' | 'DOWN'
+  responseMs: number
+  totalStations?: number
+  activeStations?: number
+  bikesAvailable?: number
+  syncedAt?: string
+  error?: string
 }
 
 export interface RentalAnalytics {
@@ -43,6 +58,8 @@ export const useAnalyticsStore = defineStore('analytics', () => {
   const transitData = ref<TransitAnalytics | null>(null)
   const rentalData = ref<RentalAnalytics | null>(null)
   const parkingData = ref<ParkingAnalytics | null>(null)
+  const gatewayData = ref<GatewayData | null>(null)
+  const gatewayLoading = ref(false)
 
   const loading = ref(false)
   const error = ref<string | null>(null)
@@ -87,5 +104,17 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     }
   }
 
-  return { transitData, rentalData, parkingData, loading, error, fetchTransit, fetchRentals, fetchParking }
+  async function fetchGateway() {
+    gatewayLoading.value = true
+    try {
+      const res = await api.get('/analytics/gateway')
+      gatewayData.value = res.data as GatewayData
+    } catch (e: any) {
+      gatewayData.value = { provider: 'BIXI Montréal', endpoint: '', status: 'DOWN', responseMs: 0, error: 'Request failed' }
+    } finally {
+      gatewayLoading.value = false
+    }
+  }
+
+  return { transitData, rentalData, parkingData, gatewayData, loading, gatewayLoading, error, fetchTransit, fetchRentals, fetchParking, fetchGateway }
 })

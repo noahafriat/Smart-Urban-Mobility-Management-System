@@ -29,13 +29,12 @@ export const useAuthStore = defineStore('auth', () => {
 
   // User registration
   async function register(payload: {
-    name: string; email: string; password: string; role: string; phone?: string
+    name: string; email: string; password: string; role: string; phone?: string; preferredMobilityType?: string
   }) {
     loading.value = true
     error.value = null
     try {
-      const res = await api.post('/users/register', payload)
-      user.value = res.data as User
+      await api.post('/users/register', payload)
     } catch (e: any) {
       error.value = e.response?.data?.error ?? 'Registration failed'
       throw error.value

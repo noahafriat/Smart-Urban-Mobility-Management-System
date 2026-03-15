@@ -24,6 +24,7 @@ public abstract class Vehicle {
     private String maintenanceState;
     private boolean visibleInSearch;
     private boolean retired;
+    private String model;
 
     public Vehicle(String providerId, VehicleType type, String locationCity) {
         this.id = UUID.randomUUID().toString();
@@ -39,5 +40,6 @@ public abstract class Vehicle {
         this.maintenanceState = "READY";
         this.visibleInSearch = true;
         this.retired = false;
+        this.model = type == VehicleType.CAR ? "Standard Car" : "Standard Scooter";
     }
 }

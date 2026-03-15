@@ -18,7 +18,7 @@ public class UserService {
 
     // register new user
     public Map<String, Object> register(String name, String email, String password,
-                                        String roleStr, String phone) {
+                                        String roleStr, String phone, String preferredMobilityType) {
         if (userRepository.existsByEmail(email)) {
             throw new IllegalArgumentException("An account with this email already exists.");
         }
@@ -32,6 +32,9 @@ public class UserService {
 
         User user = new User(name, email, password, role);
         if (phone != null && !phone.isBlank()) user.setPhone(phone);
+        if (preferredMobilityType != null && !preferredMobilityType.isBlank()) {
+            user.setPreferredMobilityType(preferredMobilityType);
+        }
         userRepository.save(user);
 
         return toResponse(user);

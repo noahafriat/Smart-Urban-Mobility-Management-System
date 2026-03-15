@@ -61,8 +61,13 @@ public class UserRepository {
         User admin = new User("City Admin",     "admin@summs.ca", "admin123",    UserRole.CITY_ADMIN);
         save(admin);
 
-        User bixi  = new User("demo-provider-id", "BIXI Operator", "bixi@summs.ca", "bixi123", UserRole.MOBILITY_PROVIDER);
-        save(bixi);
+        User carProvider = new User("car-provider-id", "CommuneAuto (Cars)", "cars@summs.ca", "cars123", UserRole.MOBILITY_PROVIDER);
+        carProvider.setPreferredMobilityType("CAR");
+        save(carProvider);
+
+        User scooterProvider = new User("scooter-provider-id", "BIXI (Scooters)", "scooters@summs.ca", "scooters123", UserRole.MOBILITY_PROVIDER);
+        scooterProvider.setPreferredMobilityType("SCOOTER");
+        save(scooterProvider);
 
         User sys   = new User("System Admin",   "sys@summs.ca",   "sys123",      UserRole.SYSTEM_ADMIN);
         save(sys);

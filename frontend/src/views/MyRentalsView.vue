@@ -60,8 +60,9 @@ function handlePay(rentalId: string) {
 
         <div class="r-details">
           <div class="r-vehicle">
-            <h3>{{ rental.vehicle.type }} Reservation</h3>
-            <p><strong>Location:</strong> {{ rental.vehicle.locationCity }}</p>
+            <h3>{{ rental.vehicle.type === 'CAR' ? rental.vehicle.model : 'Scooter' }}</h3>
+            <p><strong>Code:</strong> {{ rental.vehicle.vehicleCode }}</p>
+            <p><strong>Location:</strong> {{ rental.vehicle.locationCity }} / {{ rental.vehicle.locationZone }}</p>
             <p v-if="rental.vehicle.licensePlate"><strong>License:</strong> {{ rental.vehicle.licensePlate }}</p>
           </div>
 
