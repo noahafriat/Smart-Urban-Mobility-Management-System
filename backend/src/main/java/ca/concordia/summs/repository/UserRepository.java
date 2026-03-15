@@ -45,6 +45,10 @@ public class UserRepository {
         return store.size();
     }
 
+    public boolean deleteById(String id) {
+        return store.remove(id) != null;
+    }
+
     // Demo accounts
 
     private void seed() {

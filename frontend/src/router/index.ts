@@ -42,6 +42,34 @@ const router = createRouter({
       component: () => import('../views/DashboardView.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      // Transit Analytics (Admin)
+      path: '/analytics/transit',
+      name: 'analytics-transit',
+      component: () => import('../views/TransitAnalyticsView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      // Rental Analytics (Admin + Provider)
+      path: '/analytics/rentals',
+      name: 'analytics-rentals',
+      component: () => import('../views/RentalAnalyticsView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      // Parking Analytics (Admin)
+      path: '/analytics/parking',
+      name: 'analytics-parking',
+      component: () => import('../views/ParkingAnalyticsView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      // User Role Management (System Admin only)
+      path: '/admin/users',
+      name: 'admin-users',
+      component: () => import('../views/UserManagementView.vue'),
+      meta: { requiresAuth: true },
+    },
   ],
 })
 

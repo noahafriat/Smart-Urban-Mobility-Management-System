@@ -64,6 +64,23 @@ public class UserService {
         return toResponse(user);
     }
 
+    public void deleteUser(String requesterId, String targetUserId) {
+        if (requesterId.equals(targetUserId)) {
+            throw new IllegalArgumentException("You cannot delete your own account.");
+        }
+        User target = userRepository.findById(targetUserId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found."));
+        // Safety: prevent deleting the last System Admin
+        if (target.getRole() == UserRole.SYSTEM_ADMIN) {
+            long sysAdminCount = userRepository.findAll().stream()
+                    .filter(u -> u.getRole() == UserRole.SYSTEM_ADMIN).count();
+            if (sysAdminCount <= 1) {
+                throw new IllegalArgumentException("Cannot delete the last System Admin.");
+            }
+        }
+        userRepository.deleteById(targetUserId);
+    }
+
     public List<Map<String, Object>> getAllUsers() {
         return userRepository.findAll().stream().map(this::toResponse).toList();
     }

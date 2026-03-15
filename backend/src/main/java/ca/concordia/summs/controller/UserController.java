@@ -66,6 +66,19 @@ public class UserController {
         }
     }
 
+    // DELETE /api/users/{id}
+    // Delete a user account (System Admin only)
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Object> deleteUser(@PathVariable String id,
+                                              @RequestParam String requesterId) {
+        try {
+            userService.deleteUser(requesterId, id);
+            return ResponseEntity.ok(Map.of("message", "User deleted successfully."));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     // GET /api/users
     // List all users
     @GetMapping
