@@ -214,11 +214,11 @@ function barWidthMap(key: string, map: Record<string, number>): string {
 
 <style scoped>
 .analytics-view {
-  padding: 2rem;
-  max-width: 1100px;
+  padding: 2rem clamp(1.25rem, 2.5vw, 2.75rem);
+  width: min(96vw, 1680px);
   margin: 0 auto;
   display: grid;
-  gap: 1.5rem;
+  gap: 1.75rem;
 }
 
 .page-header h1 {
@@ -246,8 +246,8 @@ function barWidthMap(key: string, map: Record<string, number>): string {
 
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.15rem;
 }
 
 .kpi-card {
@@ -328,8 +328,8 @@ function barWidthMap(key: string, map: Record<string, number>): string {
 
 .demo-kpi-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.15rem;
 }
 
 .demo-kpi {
@@ -485,7 +485,7 @@ function barWidthMap(key: string, map: Record<string, number>): string {
 
 .two-col {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
   gap: 1.5rem;
 }
 
@@ -493,7 +493,7 @@ function barWidthMap(key: string, map: Record<string, number>): string {
   background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 14px;
-  padding: 1.5rem;
+  padding: 1.7rem;
 }
 
 .section-card h2 {
@@ -593,5 +593,15 @@ function barWidthMap(key: string, map: Record<string, number>): string {
 
 @keyframes pulse {
   0%, 100% { opacity: 1; } 50% { opacity: .5; }
+}
+
+@media (max-width: 1024px) {
+  .analytics-view {
+    width: 100%;
+    padding: 1.25rem 1rem 1.75rem;
+  }
+  .two-col {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

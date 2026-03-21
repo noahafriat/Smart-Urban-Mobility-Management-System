@@ -112,11 +112,11 @@ function occupancyColor(rate: string): string {
 </script>
 
 <style scoped>
-.analytics-view { padding: 2rem; max-width: 1100px; margin: 0 auto; display: grid; gap: 1.5rem; }
+.analytics-view { padding: 2rem clamp(1.25rem, 2.5vw, 2.75rem); width: min(96vw, 1680px); margin: 0 auto; display: grid; gap: 1.75rem; }
 .page-header h1 { font-size: 2.2rem; color: #0f172a; margin: 0 0 0.4rem; }
 .page-header p { color: #64748b; margin: 0; font-size: 1.05rem; }
 .uc-tag { display: inline-block; background: #e0f2fe; color: #0369a1; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; margin-left: 0.4rem; }
-.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1rem; }
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.15rem; }
 .kpi-card { border-radius: 14px; padding: 1.25rem 1.5rem; display: flex; flex-direction: column; gap: 0.35rem; }
 .kpi-card.blue { background: linear-gradient(135deg, #dbeafe, #bfdbfe); }
 .kpi-card.green { background: linear-gradient(135deg, #dcfce7, #bbf7d0); }
@@ -124,8 +124,8 @@ function occupancyColor(rate: string): string {
 .kpi-card.red { background: linear-gradient(135deg, #fee2e2, #fecaca); }
 .kpi-label { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #475569; }
 .kpi-value { font-size: 2rem; font-weight: 800; color: #0f172a; }
-.two-col { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; }
-.section-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 1.5rem; }
+.two-col { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 1.5rem; }
+.section-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 1.7rem; }
 .section-card h2 { margin: 0 0 0.4rem; font-size: 1.1rem; color: #0f172a; }
 .section-sub { margin: 0 0 1.25rem; font-size: 0.87rem; color: #64748b; }
 .bar-group { display: flex; flex-direction: column; gap: 0.75rem; }
@@ -143,4 +143,9 @@ function occupancyColor(rate: string): string {
 .state-msg.pulse { animation: pulse 2s infinite; }
 .empty-msg { color: #94a3b8; font-size: 0.9rem; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+
+@media (max-width: 1024px) {
+  .analytics-view { width: 100%; padding: 1.25rem 1rem 1.75rem; }
+  .two-col { grid-template-columns: 1fr; }
+}
 </style>
