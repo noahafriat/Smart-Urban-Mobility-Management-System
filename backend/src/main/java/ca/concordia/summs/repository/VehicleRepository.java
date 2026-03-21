@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 public class VehicleRepository {
 
     private final Map<String, Vehicle> store = new ConcurrentHashMap<>();
+    private final Map<String, List<double[]>> zoneCoordinates = buildZoneCoordinates();
 
     public VehicleRepository() {
         seed();
@@ -80,6 +81,7 @@ public class VehicleRepository {
         // A single car in maintenance
         Vehicle brokenCar = VehicleFactory.createVehicle(VehicleType.CAR, carProviderId, "Laval");
         brokenCar.setLocationZone("FLEX Zone: Laval-des-Rapides");
+        assignCoordinates(brokenCar, "Laval", "FLEX Zone: Laval-des-Rapides", 99);
         brokenCar.setModel("Toyota Camry");
         brokenCar.setPricingCategory("Economy");
         brokenCar.setBasePrice(15.00);
@@ -96,6 +98,7 @@ public class VehicleRepository {
         for (int i = 1; i <= count; i++) {
             Vehicle v = VehicleFactory.createVehicle(VehicleType.SCOOTER, providerId, city);
             v.setLocationZone(zone);
+            assignCoordinates(v, city, zone, i);
             v.setPricingCategory("Standard Scooter");
             v.setBasePrice(1.00); // Standard $1 unlock
             v.setPricePerMinute(pricePerMin);
@@ -113,6 +116,7 @@ public class VehicleRepository {
         for (int i = 1; i <= count; i++) {
             Vehicle v = VehicleFactory.createVehicle(VehicleType.CAR, providerId, city);
             v.setLocationZone(zone);
+            assignCoordinates(v, city, zone, i);
             v.setModel(model);
             v.setPricingCategory(category);
             v.setBasePrice(basePrice);
@@ -125,5 +129,121 @@ public class VehicleRepository {
             v.setVehicleCode(String.format("%s-%03d", prefix, i));
             save(v);
         }
+    }
+
+    private void assignCoordinates(Vehicle vehicle, String city, String zone, int index) {
+        String key = city + "|" + zone;
+        if (vehicle.getType() == VehicleType.SCOOTER && zone.startsWith("Dock:")) {
+            assignDockClusterCoordinates(vehicle, key, city, index);
+            return;
+        }
+        List<double[]> streetPoints = zoneCoordinates.get(key);
+        if (streetPoints == null || streetPoints.isEmpty()) {
+            double[] fallback = cityCenter(city);
+            vehicle.setLatitude(fallback[0]);
+            vehicle.setLongitude(fallback[1]);
+            return;
+        }
+        int slot = Math.floorMod(index - 1, streetPoints.size());
+        double[] point = streetPoints.get(slot);
+        vehicle.setLatitude(point[0]);
+        vehicle.setLongitude(point[1]);
+    }
+
+    private void assignDockClusterCoordinates(Vehicle vehicle, String key, String city, int index) {
+        List<double[]> anchors = zoneCoordinates.get(key);
+        double[] anchor = (anchors != null && !anchors.isEmpty()) ? anchors.get(0) : cityCenter(city);
+        // Very small offsets keep scooters visually grouped as one dock.
+        double[][] dockOffsets = new double[][]{
+                {0.00000, 0.00000},
+                {0.00003, 0.00002},
+                {0.00003, -0.00002},
+                {-0.00003, 0.00002},
+                {-0.00003, -0.00002},
+                {0.00005, 0.00000},
+                {-0.00005, 0.00000},
+                {0.00000, 0.00005}
+        };
+        int slot = Math.floorMod(index - 1, dockOffsets.length);
+        double[] offset = dockOffsets[slot];
+        vehicle.setLatitude(anchor[0] + offset[0]);
+        vehicle.setLongitude(anchor[1] + offset[1]);
+    }
+
+    private Map<String, List<double[]>> buildZoneCoordinates() {
+        Map<String, List<double[]>> map = new HashMap<>();
+        map.put("Montreal|Dock: McGill & Sherbrooke", List.of(
+                new double[]{45.5049, -73.5757},
+                new double[]{45.5046, -73.5763},
+                new double[]{45.5052, -73.5760}
+        ));
+        map.put("Montreal|Dock: Place des Arts", List.of(
+                new double[]{45.5085, -73.5680},
+                new double[]{45.5089, -73.5673},
+                new double[]{45.5083, -73.5675}
+        ));
+        map.put("Montreal|Dock: Guy-Concordia", List.of(
+                new double[]{45.4959, -73.5790},
+                new double[]{45.4956, -73.5794},
+                new double[]{45.4962, -73.5788}
+        ));
+        map.put("Montreal|Dock: Berri-UQAM", List.of(
+                new double[]{45.5151, -73.5612},
+                new double[]{45.5154, -73.5608},
+                new double[]{45.5149, -73.5609}
+        ));
+        map.put("Laval|Dock: Montmorency Station", List.of(
+                new double[]{45.5582, -73.7244},
+                new double[]{45.5585, -73.7239},
+                new double[]{45.5579, -73.7242}
+        ));
+        map.put("Laval|Dock: Centropolis", List.of(
+                new double[]{45.5685, -73.7489},
+                new double[]{45.5682, -73.7495},
+                new double[]{45.5687, -73.7492}
+        ));
+        map.put("Laval|Dock: Cartier Station", List.of(
+                new double[]{45.5501, -73.7124},
+                new double[]{45.5504, -73.7119},
+                new double[]{45.5498, -73.7120}
+        ));
+        map.put("Montreal|Station: Griffintown Surface Lot", List.of(
+                new double[]{45.49202, -73.55642},
+                new double[]{45.49196, -73.55655},
+                new double[]{45.49208, -73.55631}
+        ));
+        map.put("Montreal|Station: Griffintown Underground", List.of(
+                new double[]{45.49200, -73.55636},
+                new double[]{45.49193, -73.55649},
+                new double[]{45.49207, -73.55627}
+        ));
+        map.put("Montreal|FLEX Zone: Mile End", List.of(
+                new double[]{45.52544, -73.59532},
+                new double[]{45.52558, -73.59501},
+                new double[]{45.52529, -73.59563}
+        ));
+        map.put("Montreal|FLEX Zone: Old Montreal", List.of(
+                new double[]{45.50761, -73.55427},
+                new double[]{45.50772, -73.55401},
+                new double[]{45.50750, -73.55446}
+        ));
+        map.put("Laval|Station: Chomedey Reserved", List.of(
+                new double[]{45.5515, -73.7565},
+                new double[]{45.5518, -73.7560},
+                new double[]{45.5513, -73.7561}
+        ));
+        map.put("Laval|FLEX Zone: Laval-des-Rapides", List.of(
+                new double[]{45.5572, -73.7025},
+                new double[]{45.5569, -73.7031},
+                new double[]{45.5574, -73.7028}
+        ));
+        return map;
+    }
+
+    private double[] cityCenter(String city) {
+        if ("Laval".equalsIgnoreCase(city)) {
+            return new double[]{45.5623, -73.7339};
+        }
+        return new double[]{45.5019, -73.5674};
     }
 }

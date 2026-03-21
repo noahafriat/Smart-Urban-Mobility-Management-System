@@ -16,6 +16,8 @@ public abstract class Vehicle {
     private VehicleStatus status;
     private String locationCity;
     private String locationZone;
+    private double latitude;
+    private double longitude;
     private double batteryLevel;
     private double fuelLevel;
     private double basePrice;
@@ -34,6 +36,8 @@ public abstract class Vehicle {
         this.status = VehicleStatus.AVAILABLE;
         this.locationCity = locationCity;
         this.locationZone = "Central";
+        this.latitude = 45.5019;
+        this.longitude = -73.5674;
         this.batteryLevel = 100.0;
         this.fuelLevel = 0.0;
         this.pricingCategory = "STANDARD";

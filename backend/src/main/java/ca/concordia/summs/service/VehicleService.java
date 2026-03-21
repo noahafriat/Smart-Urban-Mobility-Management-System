@@ -95,6 +95,7 @@ public class VehicleService {
 
         Vehicle vehicle = VehicleFactory.createVehicle(type, providerId, city);
         applyVehicleUpdates(vehicle, payload, false);
+        applyDefaultCoordinatesIfMissing(vehicle, payload);
         if (vehicle.getStatus() == VehicleStatus.INACTIVE) {
             vehicle.setVisibleInSearch(false);
         }
@@ -105,6 +106,7 @@ public class VehicleService {
     public Vehicle updateVehicle(String providerId, String vehicleId, Map<String, Object> payload) {
         Vehicle vehicle = getOwnedVehicle(providerId, vehicleId);
         applyVehicleUpdates(vehicle, payload, true);
+        applyDefaultCoordinatesIfMissing(vehicle, payload);
         vehicleRepository.save(vehicle);
         return vehicle;
     }
@@ -139,6 +141,13 @@ public class VehicleService {
         if (payload.containsKey("locationZone")) {
             vehicle.setLocationZone(readText(payload.get("locationZone"), vehicle.getLocationZone()));
         }
+        if (payload.containsKey("latitude")) {
+            vehicle.setLatitude(readDouble(payload.get("latitude"), vehicle.getLatitude()));
+        }
+        if (payload.containsKey("longitude")) {
+            vehicle.setLongitude(readDouble(payload.get("longitude"), vehicle.getLongitude()));
+        }
+        applyDefaultCoordinatesIfMissing(vehicle, payload);
         vehicleRepository.save(vehicle);
         return vehicle;
     }
@@ -182,6 +191,12 @@ public class VehicleService {
         }
         if (payload.containsKey("locationZone")) {
             vehicle.setLocationZone(requireText(payload.get("locationZone"), "Location zone is required."));
+        }
+        if (payload.containsKey("latitude")) {
+            vehicle.setLatitude(readDouble(payload.get("latitude"), vehicle.getLatitude()));
+        }
+        if (payload.containsKey("longitude")) {
+            vehicle.setLongitude(readDouble(payload.get("longitude"), vehicle.getLongitude()));
         }
         if (payload.containsKey("batteryLevel")) {
             vehicle.setBatteryLevel(readDouble(payload.get("batteryLevel"), vehicle.getBatteryLevel()));
@@ -303,5 +318,42 @@ public class VehicleService {
             return number.doubleValue();
         }
         return Double.parseDouble(value.toString());
+    }
+
+    private void applyDefaultCoordinatesIfMissing(Vehicle vehicle, Map<String, Object> payload) {
+        boolean hasLat = payload.containsKey("latitude");
+        boolean hasLon = payload.containsKey("longitude");
+        if (hasLat && hasLon) {
+            return;
+        }
+        double[] coords = resolveCoordinates(vehicle.getLocationCity(), vehicle.getLocationZone());
+        vehicle.setLatitude(coords[0]);
+        vehicle.setLongitude(coords[1]);
+    }
+
+    private double[] resolveCoordinates(String city, String zone) {
+        String key = city + "|" + zone;
+        Map<String, double[]> known = Map.ofEntries(
+                Map.entry("Montreal|Dock: McGill & Sherbrooke", new double[]{45.5049, -73.5757}),
+                Map.entry("Montreal|Dock: Place des Arts", new double[]{45.5085, -73.5680}),
+                Map.entry("Montreal|Dock: Guy-Concordia", new double[]{45.4959, -73.5790}),
+                Map.entry("Montreal|Dock: Berri-UQAM", new double[]{45.5151, -73.5612}),
+                Map.entry("Laval|Dock: Montmorency Station", new double[]{45.5582, -73.7244}),
+                Map.entry("Laval|Dock: Centropolis", new double[]{45.5685, -73.7489}),
+                Map.entry("Laval|Dock: Cartier Station", new double[]{45.5501, -73.7124}),
+                Map.entry("Montreal|Station: Griffintown Surface Lot", new double[]{45.49202, -73.55642}),
+                Map.entry("Montreal|Station: Griffintown Underground", new double[]{45.49200, -73.55636}),
+                Map.entry("Montreal|FLEX Zone: Mile End", new double[]{45.52544, -73.59532}),
+                Map.entry("Montreal|FLEX Zone: Old Montreal", new double[]{45.50761, -73.55427}),
+                Map.entry("Laval|Station: Chomedey Reserved", new double[]{45.5515, -73.7565}),
+                Map.entry("Laval|FLEX Zone: Laval-des-Rapides", new double[]{45.5572, -73.7025})
+        );
+        if (known.containsKey(key)) {
+            return known.get(key);
+        }
+        if ("Laval".equalsIgnoreCase(city)) {
+            return new double[]{45.5623, -73.7339};
+        }
+        return new double[]{45.5019, -73.5674};
     }
 }

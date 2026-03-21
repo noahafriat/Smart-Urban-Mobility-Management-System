@@ -13,6 +13,8 @@ export interface Vehicle {
   status: VehicleStatus
   locationCity: string
   locationZone: string
+  latitude: number
+  longitude: number
   batteryLevel: number
   fuelLevel: number
   basePrice: number
@@ -52,6 +54,8 @@ export interface VehiclePayload {
   vehicleCode: string
   locationCity: string
   locationZone: string
+  latitude?: number
+  longitude?: number
   batteryLevel: number
   fuelLevel: number
   basePrice: number
