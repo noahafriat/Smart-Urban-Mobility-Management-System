@@ -619,7 +619,7 @@ function vehicleHeading(vehicle: Vehicle) {
 <style scoped>
 .fleet-manager {
   display: grid;
-  gap: 1.5rem;
+  gap: 1.1rem;
 }
 
 .fleet-topbar {
@@ -627,6 +627,10 @@ function vehicleHeading(vehicle: Vehicle) {
   justify-content: space-between;
   gap: 1rem;
   align-items: flex-start;
+  background: linear-gradient(140deg, #eff6ff, #f8fafc);
+  border: 1px solid #dbeafe;
+  border-radius: 16px;
+  padding: 1rem 1.15rem;
 }
 
 .fleet-topbar h2 {
@@ -646,8 +650,8 @@ function vehicleHeading(vehicle: Vehicle) {
 
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.85rem;
 }
 
 .summary-card {
@@ -655,6 +659,7 @@ function vehicleHeading(vehicle: Vehicle) {
   border: 1px solid #d5e4f3;
   border-radius: 14px;
   padding: 1.1rem;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
 }
 
 .summary-card strong {
@@ -740,6 +745,13 @@ function vehicleHeading(vehicle: Vehicle) {
   border: 1px solid #e2e8f0;
   border-radius: 14px;
   padding: 1rem;
+}
+
+.filters-panel {
+  position: sticky;
+  top: 0.75rem;
+  z-index: 5;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
 }
 
 .modal-backdrop {
@@ -944,8 +956,18 @@ input[disabled], select[disabled], .disabled-input {
 
 .fleet-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 1rem;
+}
+
+.vehicle-card {
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.vehicle-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.1);
 }
 
 .card-type {

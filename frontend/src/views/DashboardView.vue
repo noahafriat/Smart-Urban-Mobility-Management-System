@@ -60,13 +60,13 @@ const auth = useAuthStore()
       </div>
 
       <!-- Provider Fleet Analytics card -->
-      <div class="card" v-if="auth.isProvider">
+      <div class="card provider-side-card" v-if="auth.isProvider">
         <h2>Fleet Analytics</h2>
         <p>View rental trends and activity for your fleet.</p>
         <RouterLink to="/analytics/rentals" class="action-btn">Rental Analytics</RouterLink>
       </div>
       
-      <div class="card profile-card">
+      <div class="card profile-card" :class="{ 'provider-side-card': auth.isProvider }">
         <h2>Profile Details</h2>
         <div class="profile-list">
           <div class="profile-row">
@@ -85,8 +85,8 @@ const auth = useAuthStore()
 
 <style scoped>
 .dashboard {
-  padding: 2rem;
-  max-width: 1000px;
+  padding: 2rem clamp(1rem, 2vw, 2.5rem);
+  width: min(96vw, 1700px);
   margin: 0 auto;
 }
 
@@ -134,7 +134,8 @@ h1 {
 }
 
 .dash-content.provider-layout {
-  grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+  grid-template-columns: minmax(0, 1.45fr) minmax(300px, 360px);
+  gap: 1.25rem;
 }
 
 .card {
@@ -146,11 +147,18 @@ h1 {
 
 .provider-main-card {
   min-width: 0;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  border: 1px solid #dbe7f3;
 }
 
 .profile-card {
   padding: 1rem 1.1rem;
   align-self: start;
+}
+
+.provider-side-card {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid #e2e8f0;
 }
 
 h2 {
