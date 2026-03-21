@@ -55,7 +55,7 @@ const router = createRouter({
       path: '/mobility-map',
       name: 'mobility-map',
       component: () => import('../views/MobilityMapView.vue'),
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, citizenOnly: true },
     },
     {
       path: '/dashboard',
@@ -99,6 +99,8 @@ router.beforeEach((to, from, next) => {
   const auth = useAuthStore()
   if (to.meta.requiresAuth && !auth.isLoggedIn) {
     next('/login')
+  } else if (to.meta.citizenOnly && !auth.isCitizen) {
+    next('/dashboard')
   } else if ((to.path === '/login' || to.path === '/register') && auth.isLoggedIn) {
     next('/dashboard')
   } else {
