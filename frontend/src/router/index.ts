@@ -51,6 +51,13 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      // Unified mobility map for vehicles + BIXI
+      path: '/mobility-map',
+      name: 'mobility-map',
+      component: () => import('../views/MobilityMapView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/dashboard',
       name: 'dashboard',
       component: () => import('../views/DashboardView.vue'),

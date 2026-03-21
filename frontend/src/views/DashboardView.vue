@@ -31,6 +31,12 @@ const auth = useAuthStore()
         <RouterLink to="/bixi" class="action-btn" style="background: #16a34a;">View BIXI Stations</RouterLink>
       </div>
 
+      <div class="card" v-if="auth.isCitizen || auth.isProvider || auth.isAdmin">
+        <h2>🗺 Mobility Map</h2>
+        <p>View car rentals, scooter docks, and BIXI bikes on one live map.</p>
+        <RouterLink to="/mobility-map" class="action-btn" style="background: #0f766e;">Open Mobility Map</RouterLink>
+      </div>
+
       <div class="card provider-main-card" v-if="auth.isProvider">
         <h2>Fleet Overview</h2>
         <p>Manage your fleet of scooters and cars.</p>
