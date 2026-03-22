@@ -33,8 +33,14 @@ const auth = useAuthStore()
 
       <div class="card" v-if="auth.isCitizen">
         <h2>🗺 Mobility Map</h2>
-        <p>View car rentals, scooter docks, and BIXI bikes on one live map.</p>
+        <p>View car rentals, scooter docks, BIXI bikes, and parking garages on one live map.</p>
         <RouterLink to="/mobility-map" class="action-btn" style="background: #0f766e;">Open Mobility Map</RouterLink>
+      </div>
+
+      <div class="card" v-if="auth.isCitizen">
+        <h2>🅿️ Parking Spaces</h2>
+        <p>Find available parking spaces across the city and view live capacity data.</p>
+        <RouterLink to="/parking-spaces" class="action-btn" style="background: #2b6cb0;">View Parking Spaces</RouterLink>
       </div>
 
       <div class="card provider-main-card" v-if="auth.isProvider">

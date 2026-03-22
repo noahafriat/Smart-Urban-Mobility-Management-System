@@ -58,6 +58,13 @@ const router = createRouter({
       meta: { requiresAuth: true, citizenOnly: true },
     },
     {
+      // Parking Spaces (Citizens)
+      path: '/parking-spaces',
+      name: 'parking-spaces',
+      component: () => import('../views/ParkingSpacesView.vue'),
+      meta: { requiresAuth: true, citizenOnly: true },
+    },
+    {
       path: '/dashboard',
       name: 'dashboard',
       component: () => import('../views/DashboardView.vue'),

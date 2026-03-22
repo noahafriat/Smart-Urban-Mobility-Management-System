@@ -119,14 +119,12 @@ function availabilityClass(bikes: number): string {
           </div>
         </div>
 
-        <a
-          :href="`https://www.google.com/maps?q=${station.lat},${station.lon}`"
-          target="_blank"
-          rel="noopener"
+        <RouterLink
+          :to="`/mobility-map?lat=${station.lat}&lng=${station.lon}`"
           class="map-link"
         >
           View on Map →
-        </a>
+        </RouterLink>
       </article>
     </div>
   </div>

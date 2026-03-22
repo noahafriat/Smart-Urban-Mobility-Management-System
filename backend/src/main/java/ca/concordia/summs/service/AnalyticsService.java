@@ -6,6 +6,7 @@ import ca.concordia.summs.model.Vehicle;
 import ca.concordia.summs.model.VehicleStatus;
 import ca.concordia.summs.pattern.singleton.AnalyticsEngine;
 import ca.concordia.summs.repository.RentalRepository;
+import ca.concordia.summs.model.ParkingGarage;
 import ca.concordia.summs.repository.UserRepository;
 import ca.concordia.summs.repository.VehicleRepository;
 import org.springframework.stereotype.Service;
@@ -25,13 +26,16 @@ public class AnalyticsService {
     private final RentalRepository rentalRepository;
     private final VehicleRepository vehicleRepository;
     private final UserRepository userRepository;
+    private final ParkingGarageService parkingGarageService;
 
     public AnalyticsService(RentalRepository rentalRepository,
                             VehicleRepository vehicleRepository,
-                            UserRepository userRepository) {
+                            UserRepository userRepository,
+                            ParkingGarageService parkingGarageService) {
         this.rentalRepository = rentalRepository;
         this.vehicleRepository = vehicleRepository;
         this.userRepository = userRepository;
+        this.parkingGarageService = parkingGarageService;
     }
 
     /**
@@ -221,6 +225,12 @@ public class AnalyticsService {
         long totalAvailable = fleet.stream().filter(v -> v.getStatus() == VehicleStatus.AVAILABLE).count();
         double utilizationRate = totalActive == 0 ? 0.0 : ((totalActive - totalAvailable) * 100.0 / totalActive);
 
+        List<ParkingGarage> garageList = parkingGarageService.getAllGarages();
+        long totalGarages = garageList.size();
+        long totalGarageSpaces = garageList.stream().mapToLong(ParkingGarage::getTotalSpaces).sum();
+        long availableGarageSpaces = garageList.stream().mapToLong(ParkingGarage::getAvailableSpaces).sum();
+        double garageUtilization = totalGarageSpaces == 0 ? 0.0 : ((totalGarageSpaces - availableGarageSpaces) * 100.0 / totalGarageSpaces);
+
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("totalVehicles", fleet.size());
         result.put("totalAvailableInZones", totalAvailable);
@@ -228,6 +238,12 @@ public class AnalyticsService {
         result.put("parkedPerZone", parkedPerZone);
         result.put("occupancyRate", occupancyRate);
         result.put("maintenancePerCity", maintenancePerCity);
+
+        result.put("totalGarages", totalGarages);
+        result.put("totalGarageSpaces", totalGarageSpaces);
+        result.put("totalAvailableGarageSpaces", availableGarageSpaces);
+        result.put("garageUtilizationRate", Math.round(garageUtilization * 10.0) / 10.0 + "%");
+        result.put("garageDetails", garageList);
         return result;
     }
 
