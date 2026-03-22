@@ -140,10 +140,19 @@ function getEnergyLabel(vehicle: Vehicle) {
               <div class="availability-badge" :class="availabilityClass(dock.vehicles.length)">
                 {{ dock.vehicles.length }} available
               </div>
-              <button class="expand-icon-btn" :class="{ rotated: isExpanded(dock.zone) }">
+              <button class="expand-icon-btn" :class="{ rotated: isExpanded(dock.zone) }" @click.stop="toggleGroup(dock.zone)">
                 ▼
               </button>
             </div>
+          </div>
+          
+          <div class="loc-actions" v-if="!isExpanded(dock.zone) && dock.vehicles.length > 0">
+            <RouterLink 
+              :to="`/mobility-map?lat=${dock.vehicles[0]?.latitude}&lng=${dock.vehicles[0]?.longitude}`" 
+              class="map-link"
+            >
+              View on Map →
+            </RouterLink>
           </div>
           
           <transition name="slide">
@@ -155,7 +164,15 @@ function getEnergyLabel(vehicle: Vehicle) {
                     🔋 {{ getEnergyLabel(v) }}
                   </span>
                 </div>
-                <button class="iv-reserve" @click="handleReserve(v.id)">Reserve</button>
+                <div class="iv-actions">
+                  <RouterLink 
+                    :to="`/mobility-map?lat=${v.latitude}&lng=${v.longitude}`" 
+                    class="iv-map-btn"
+                  >
+                    Map
+                  </RouterLink>
+                  <button class="iv-reserve" @click="handleReserve(v.id)">Reserve</button>
+                </div>
               </div>
             </div>
           </transition>
@@ -178,10 +195,19 @@ function getEnergyLabel(vehicle: Vehicle) {
               <div class="availability-badge car-badge" :class="availabilityClass(zone.vehicles.length)">
                 {{ zone.vehicles.length }} cars nearby
               </div>
-              <button class="expand-icon-btn" :class="{ rotated: isExpanded(zone.zone) }">
+              <button class="expand-icon-btn" :class="{ rotated: isExpanded(zone.zone) }" @click.stop="toggleGroup(zone.zone)">
                 ▼
               </button>
             </div>
+          </div>
+          
+          <div class="loc-actions" v-if="!isExpanded(zone.zone) && zone.vehicles.length > 0">
+            <RouterLink 
+              :to="`/mobility-map?lat=${zone.vehicles[0]?.latitude}&lng=${zone.vehicles[0]?.longitude}`" 
+              class="map-link"
+            >
+              View on Map →
+            </RouterLink>
           </div>
           
           <transition name="slide">
@@ -193,7 +219,15 @@ function getEnergyLabel(vehicle: Vehicle) {
                     ⛽ {{ getEnergyLabel(v) }}
                   </span>
                 </div>
-                <button class="iv-reserve car-reserve" @click="handleReserve(v.id)">Reserve Car</button>
+                <div class="iv-actions">
+                  <RouterLink 
+                    :to="`/mobility-map?lat=${v.latitude}&lng=${v.longitude}`" 
+                    class="iv-map-btn"
+                  >
+                    Map
+                  </RouterLink>
+                  <button class="iv-reserve car-reserve" @click="handleReserve(v.id)">Reserve</button>
+                </div>
               </div>
             </div>
           </transition>
@@ -436,6 +470,28 @@ function getEnergyLabel(vehicle: Vehicle) {
   color: #dc2626;
 }
 
+.iv-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.iv-map-btn {
+  padding: 0.6rem 1rem;
+  background: white;
+  color: #3b82f6;
+  border: 1px solid #3b82f6;
+  border-radius: 8px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.iv-map-btn:hover {
+  background: #eff6ff;
+}
+
 .iv-reserve {
   padding: 0.6rem 1.5rem;
   background: #3b82f6;
@@ -483,6 +539,21 @@ function getEnergyLabel(vehicle: Vehicle) {
 .pulse {
   animation: pulse 2s infinite;
 }
+
+.loc-actions {
+  padding: 0 1.5rem 1.25rem;
+  background: white;
+  margin-top: -0.5rem;
+}
+
+.map-link {
+  font-size: 0.85rem;
+  color: #3b82f6;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.map-link:hover { text-decoration: underline; }
 
 @keyframes pulse {
   0%, 100% { opacity: 1; }

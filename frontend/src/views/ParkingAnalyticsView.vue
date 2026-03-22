@@ -14,14 +14,16 @@ onMounted(() => store.fetchParking())
   <div class="analytics-view">
     <header class="page-header">
       <h1>Parking & Zone Analytics</h1>
-      <p>Real-time vehicle occupancy and zone utilization across the city.</p>
+      <p>Real-time vehicle occupancy, zone utilization, and parking garage analytics across the city.</p>
     </header>
 
     <div v-if="store.loading" class="state-msg pulse">Loading parking analytics…</div>
     <div v-else-if="store.error" class="state-msg error">{{ store.error }}</div>
 
     <template v-else-if="store.parkingData">
-      <!-- KPI Row -->
+      
+      <!-- Rental Zones KPIs -->
+      <h2 class="section-title mt-4">Rental Zones (Scooters & Cars)</h2>
       <div class="kpi-grid">
         <div class="kpi-card blue">
           <span class="kpi-label">Total Vehicles</span>
@@ -41,11 +43,11 @@ onMounted(() => store.fetchParking())
         </div>
       </div>
 
-      <div class="two-col">
+      <div class="two-col mt-2">
         <!-- Occupancy Rate per Zone -->
         <section class="section-card">
           <h2>Zone Occupancy Rate</h2>
-          <p class="section-sub">Percentage of vehicles in each zone that are currently in use or unavailable.</p>
+          <p class="section-sub">Percentage of rental vehicles in each zone that are currently in use or unavailable.</p>
           <div class="bar-group">
             <div v-for="(rate, zone) in store.parkingData.occupancyRate" :key="zone" class="bar-row wide">
               <span class="zone-label" :title="zone">{{ zone }}</span>
@@ -63,7 +65,7 @@ onMounted(() => store.fetchParking())
         <!-- Parked per Zone -->
         <section class="section-card">
           <h2>Available Vehicles per Zone</h2>
-          <p class="section-sub">Number of vehicles currently parked and ready for rental.</p>
+          <p class="section-sub">Number of rental vehicles currently parked and ready for rental.</p>
           <div v-if="Object.keys(store.parkingData.parkedPerZone).length === 0" class="empty-msg">
             No available vehicles in any zone.
           </div>
@@ -79,19 +81,48 @@ onMounted(() => store.fetchParking())
         </section>
       </div>
 
-      <!-- Maintenance per City -->
-      <section class="section-card" v-if="Object.keys(store.parkingData.maintenancePerCity).length > 0">
-        <h2>Vehicles in Maintenance by City</h2>
-        <div class="bar-group">
-          <div v-for="(count, city) in store.parkingData.maintenancePerCity" :key="city" class="bar-row">
-            <span>{{ city }}</span>
+      <!-- True Parking Garages Section -->
+      <h2 class="section-title mt-4">City Parking Garages</h2>
+      <div class="kpi-grid">
+        <div class="kpi-card blue">
+          <span class="kpi-label">Total Garage Spaces</span>
+          <strong class="kpi-value">{{ store.parkingData.totalGarageSpaces }}</strong>
+        </div>
+        <div class="kpi-card green">
+          <span class="kpi-label">Available Spaces</span>
+          <strong class="kpi-value">{{ store.parkingData.totalAvailableGarageSpaces }}</strong>
+        </div>
+        <div class="kpi-card orange">
+          <span class="kpi-label">Garage Occupancy Rate</span>
+          <strong class="kpi-value">{{ store.parkingData.garageUtilizationRate }}</strong>
+        </div>
+        <div class="kpi-card purple">
+          <span class="kpi-label">Monitored Garages</span>
+          <strong class="kpi-value">{{ store.parkingData.totalGarages }}</strong>
+        </div>
+      </div>
+
+      <!-- Garage Specifics -->
+      <section class="section-card mt-2 mb-2">
+        <h2>Garage Availability & Utilization</h2>
+        <p class="section-sub">Real-time availability of spaces per parking garage across the city.</p>
+        <div v-if="store.parkingData.garageDetails.length === 0" class="empty-msg">
+          No parking garages tracked.
+        </div>
+        <div v-else class="bar-group">
+          <div v-for="garage in store.parkingData.garageDetails" :key="garage.id" class="bar-row wide">
+            <span class="zone-label" :title="garage.name">{{ garage.name }}</span>
             <div class="bar-track">
-              <div class="bar-fill orange" :style="{ width: barWidthMap(city, store.parkingData.maintenancePerCity) }"></div>
+              <div class="bar-fill"
+                   :class="availabilityColor(garage.availableSpaces, garage.totalSpaces)"
+                   :style="{ width: `${((garage.totalSpaces - garage.availableSpaces) / garage.totalSpaces) * 100}%` }">
+              </div>
             </div>
-            <span class="bar-count">{{ count }}</span>
+            <span class="bar-count">{{ garage.availableSpaces }} / {{ garage.totalSpaces }}</span>
           </div>
         </div>
       </section>
+
     </template>
   </div>
 </template>
@@ -105,8 +136,15 @@ function barWidthMap(key: string, map: Record<string, number>): string {
 
 function occupancyColor(rate: string): string {
   const pct = parseInt(rate)
-  if (pct >= 75) return 'red'
-  if (pct >= 40) return 'orange'
+  if (pct >= 85) return 'red'
+  if (pct >= 50) return 'orange'
+  return 'green'
+}
+
+function availabilityColor(available: number, total: number): string {
+  const pct = ((total - available) / total) * 100;
+  if (pct >= 90) return 'red'
+  if (pct >= 70) return 'orange'
   return 'green'
 }
 </script>
@@ -115,13 +153,17 @@ function occupancyColor(rate: string): string {
 .analytics-view { padding: 2rem clamp(1.25rem, 2.5vw, 2.75rem); width: min(96vw, 1680px); margin: 0 auto; display: grid; gap: 1.75rem; }
 .page-header h1 { font-size: 2.2rem; color: #0f172a; margin: 0 0 0.4rem; }
 .page-header p { color: #64748b; margin: 0; font-size: 1.05rem; }
-.uc-tag { display: inline-block; background: #e0f2fe; color: #0369a1; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; margin-left: 0.4rem; }
+.mt-4 { margin-top: 1.5rem; }
+.mt-2 { margin-top: 0.5rem; }
+.mb-2 { margin-bottom: 0.5rem; }
+.section-title { font-size: 1.4rem; color: #1e293b; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.5rem; margin-bottom: -0.5rem; font-weight: 700; margin-top: 2rem; }
 .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.15rem; }
 .kpi-card { border-radius: 14px; padding: 1.25rem 1.5rem; display: flex; flex-direction: column; gap: 0.35rem; }
 .kpi-card.blue { background: linear-gradient(135deg, #dbeafe, #bfdbfe); }
 .kpi-card.green { background: linear-gradient(135deg, #dcfce7, #bbf7d0); }
 .kpi-card.orange { background: linear-gradient(135deg, #ffedd5, #fed7aa); }
 .kpi-card.red { background: linear-gradient(135deg, #fee2e2, #fecaca); }
+.kpi-card.purple { background: linear-gradient(135deg, #f3e8ff, #e9d5ff); }
 .kpi-label { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #475569; }
 .kpi-value { font-size: 2rem; font-weight: 800; color: #0f172a; }
 .two-col { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 1.5rem; }
@@ -130,14 +172,14 @@ function occupancyColor(rate: string): string {
 .section-sub { margin: 0 0 1.25rem; font-size: 0.87rem; color: #64748b; }
 .bar-group { display: flex; flex-direction: column; gap: 0.75rem; }
 .bar-row { display: grid; grid-template-columns: 110px 1fr 40px; align-items: center; gap: 0.75rem; font-size: 0.9rem; color: #334155; }
-.bar-row.wide { grid-template-columns: 160px 1fr 45px; }
-.zone-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.85rem; }
+.bar-row.wide { grid-template-columns: 240px 1fr 70px; }
+.zone-label { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.85rem; font-weight: 600;}
 .bar-track { background: #f1f5f9; border-radius: 999px; height: 10px; overflow: hidden; }
 .bar-fill { height: 100%; border-radius: 999px; transition: width 0.5s ease; }
 .bar-fill.green { background: #22c55e; }
 .bar-fill.orange { background: #f97316; }
 .bar-fill.red { background: #ef4444; }
-.bar-count { text-align: right; font-weight: 700; color: #0f172a; }
+.bar-count { text-align: right; font-weight: 700; color: #0f172a; white-space: nowrap;}
 .state-msg { text-align: center; padding: 3rem; color: #64748b; background: #fff; border-radius: 14px; }
 .state-msg.error { color: #dc2626; background: #fef2f2; }
 .state-msg.pulse { animation: pulse 2s infinite; }

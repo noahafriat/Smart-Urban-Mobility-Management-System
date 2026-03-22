@@ -45,12 +45,20 @@ export interface RentalAnalytics {
 }
 
 export interface ParkingAnalytics {
+  // Rental zone info
   totalVehicles: number
   totalAvailableInZones: number
   overallUtilizationRate: string
   parkedPerZone: Record<string, number>
   occupancyRate: Record<string, string>
   maintenancePerCity: Record<string, number>
+
+  // Parking garage info
+  totalGarages: number
+  totalGarageSpaces: number
+  totalAvailableGarageSpaces: number
+  garageUtilizationRate: string
+  garageDetails: Array<{ id: string, name: string, totalSpaces: number, availableSpaces: number }>
 }
 
 // ── Store ──────────────────────────────────────────────────────────────────

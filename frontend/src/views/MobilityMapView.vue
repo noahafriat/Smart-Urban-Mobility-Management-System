@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { api } from '../api'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -15,6 +16,15 @@ interface BixiStation {
   docksAvailable: number
 }
 
+interface ParkingGarage {
+  id: string
+  name: string
+  latitude: number
+  longitude: number
+  totalSpaces: number
+  availableSpaces: number
+}
+
 interface ScooterDock {
   id: string
   city: string
@@ -26,19 +36,23 @@ interface ScooterDock {
 }
 
 const mapRoot = ref<HTMLElement | null>(null)
+const route = useRoute()
 const loading = ref(false)
 const error = ref<string | null>(null)
 const vehicles = ref<Vehicle[]>([])
 const stations = ref<BixiStation[]>([])
+const garages = ref<ParkingGarage[]>([])
 
 const showCars = ref(true)
 const showScooters = ref(true)
 const showBixi = ref(true)
+const showGarages = ref(true)
 
 let map: L.Map | null = null
 let carsLayer: L.LayerGroup | null = null
 let scootersLayer: L.LayerGroup | null = null
 let bixiLayer: L.LayerGroup | null = null
+let garageLayer: L.LayerGroup | null = null
 const focusZoomLevel = 16
 
 const cars = computed(() => vehicles.value.filter(v => v.type === 'CAR'))
@@ -74,6 +88,14 @@ onMounted(async () => {
   await nextTick()
   initMap()
   renderLayers()
+  
+  const qLat = parseFloat(route.query.lat as string)
+  const qLng = parseFloat(route.query.lng as string)
+  if (!isNaN(qLat) && !isNaN(qLng)) {
+    focusOnMarker(qLat, qLng)
+    // Extra zoom if opened from specific node
+    map?.setView([qLat, qLng], 18, { animate: true })
+  }
 })
 
 onBeforeUnmount(() => {
@@ -87,12 +109,14 @@ async function fetchData() {
   loading.value = true
   error.value = null
   try {
-    const [vehicleRes, bixiRes] = await Promise.all([
+    const [vehicleRes, bixiRes, garageRes] = await Promise.all([
       api.get('/vehicles/search'),
       api.get('/analytics/bixi-stations'),
+      api.get('/parking-garages'),
     ])
     vehicles.value = vehicleRes.data as Vehicle[]
     stations.value = (bixiRes.data?.stations ?? []) as BixiStation[]
+    garages.value = garageRes.data as ParkingGarage[]
   } catch {
     error.value = 'Could not load mobility map data.'
   } finally {
@@ -117,10 +141,16 @@ function renderLayers() {
   if (carsLayer) map.removeLayer(carsLayer)
   if (scootersLayer) map.removeLayer(scootersLayer)
   if (bixiLayer) map.removeLayer(bixiLayer)
+  if (garageLayer) map.removeLayer(garageLayer)
+
+  const qLat = parseFloat(route.query.lat as string)
+  const qLng = parseFloat(route.query.lng as string)
+  let targetMarker: L.CircleMarker | null = null
 
   carsLayer = L.layerGroup()
   scootersLayer = L.layerGroup()
   bixiLayer = L.layerGroup()
+  garageLayer = L.layerGroup()
 
   for (const car of cars.value) {
     const marker = L.circleMarker([car.latitude, car.longitude], {
@@ -134,6 +164,7 @@ function renderLayers() {
     )
     marker.on('click', () => focusOnMarker(car.latitude, car.longitude))
     carsLayer.addLayer(marker)
+    if (car.latitude === qLat && car.longitude === qLng && showCars.value) targetMarker = marker
   }
 
   for (const dock of scooterDocks.value) {
@@ -148,6 +179,7 @@ function renderLayers() {
     )
     marker.on('click', () => focusOnMarker(dock.lat, dock.lon))
     scootersLayer.addLayer(marker)
+    if (dock.lat === qLat && dock.lon === qLng && showScooters.value) targetMarker = marker
   }
 
   for (const station of stations.value) {
@@ -162,11 +194,34 @@ function renderLayers() {
     )
     marker.on('click', () => focusOnMarker(station.lat, station.lon))
     bixiLayer.addLayer(marker)
+    if (station.lat === qLat && station.lon === qLng && showBixi.value) targetMarker = marker
+  }
+
+  for (const garage of garages.value) {
+    const marker = L.circleMarker([garage.latitude, garage.longitude], {
+      radius: 8,
+      color: '#b91c1c',
+      fillColor: '#f87171',
+      fillOpacity: 0.9,
+      weight: 2,
+    }).bindPopup(
+      `<strong>${garage.name}</strong><br>Available Spaces: ${garage.availableSpaces}/${garage.totalSpaces}`
+    )
+    marker.on('click', () => focusOnMarker(garage.latitude, garage.longitude))
+    garageLayer.addLayer(marker)
+    if (garage.latitude === qLat && garage.longitude === qLng && showGarages.value) targetMarker = marker
   }
 
   if (showCars.value) carsLayer.addTo(map)
   if (showScooters.value) scootersLayer.addTo(map)
   if (showBixi.value) bixiLayer.addTo(map)
+  if (showGarages.value) garageLayer.addTo(map)
+
+  if (targetMarker) {
+    setTimeout(() => {
+      targetMarker?.openPopup()
+    }, 450)
+  }
 }
 
 function focusOnMarker(lat: number, lon: number) {
@@ -197,9 +252,10 @@ async function refreshMapData() {
     </header>
 
     <div class="controls">
-      <label><input v-model="showCars" type="checkbox" @change="toggleLayer" /> Cars ({{ cars.length }})</label>
-      <label><input v-model="showScooters" type="checkbox" @change="toggleLayer" /> Scooter docks ({{ scooterDocks.length }})</label>
-      <label><input v-model="showBixi" type="checkbox" @change="toggleLayer" /> BIXI stations ({{ stations.length }})</label>
+      <label><input v-model="showCars" type="checkbox" @change="toggleLayer" /> <span class="dot car"></span> Cars ({{ cars.length }})</label>
+      <label><input v-model="showScooters" type="checkbox" @change="toggleLayer" /> <span class="dot scooter"></span> Scooter docks ({{ scooterDocks.length }})</label>
+      <label><input v-model="showBixi" type="checkbox" @change="toggleLayer" /> <span class="dot bixi"></span> BIXI stations ({{ stations.length }})</label>
+      <label><input v-model="showGarages" type="checkbox" @change="toggleLayer" /> <span class="dot garage"></span> Parking Garages ({{ garages.length }})</label>
     </div>
 
     <div v-if="error" class="state error">{{ error }}</div>
@@ -256,11 +312,18 @@ async function refreshMapData() {
 
 .controls label {
   color: #334155;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   display: flex;
   align-items: center;
-  gap: 0.45rem;
+  font-weight: 500;
+  gap: 0.5rem;
 }
+
+.dot { height: 12px; width: 12px; border-radius: 50%; display: inline-block; border: 2px solid; }
+.dot.car { background: #60a5fa; border-color: #1d4ed8; }
+.dot.scooter { background: #a78bfa; border-color: #7c3aed; }
+.dot.bixi { background: #4ade80; border-color: #15803d; }
+.dot.garage { background: #f87171; border-color: #b91c1c; }
 
 .map-root {
   width: 100%;
