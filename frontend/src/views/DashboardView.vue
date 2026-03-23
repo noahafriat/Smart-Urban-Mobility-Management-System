@@ -38,6 +38,12 @@ const auth = useAuthStore()
       </div>
 
       <div class="card" v-if="auth.isCitizen">
+        <h2>🚇 Public Transportation</h2>
+        <p>Plan routes, review métro information, and access official transit resources.</p>
+        <RouterLink to="/public-transport" class="action-btn" style="background: #7c3aed;">Open Transit Hub</RouterLink>
+      </div>
+
+      <div class="card" v-if="auth.isCitizen">
         <h2>🅿️ Parking Spaces</h2>
         <p>Find available parking spaces across the city and view live capacity data.</p>
         <RouterLink to="/parking-spaces" class="action-btn" style="background: #2b6cb0;">View Parking Spaces</RouterLink>

@@ -23,6 +23,7 @@ function doLogout() {
         <RouterLink v-if="auth.isCitizen" to="/vehicles">Search Vehicles</RouterLink>
         <RouterLink v-if="auth.isCitizen" to="/rentals">My Rentals</RouterLink>
         <RouterLink v-if="auth.isCitizen" to="/bixi">BIXI Bikes</RouterLink>
+        <RouterLink v-if="auth.isCitizen" to="/public-transport">Public Transit</RouterLink>
         <RouterLink v-if="auth.isCitizen" to="/parking-spaces">Garages</RouterLink>
         <RouterLink v-if="auth.isCitizen" to="/mobility-map">Map</RouterLink>
         <RouterLink v-if="auth.isAdmin" to="/analytics/transit">Transit</RouterLink>
