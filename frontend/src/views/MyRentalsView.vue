@@ -66,9 +66,14 @@ function handlePay(rentalId: string) {
             <p v-if="rental.vehicle.licensePlate"><strong>License:</strong> {{ rental.vehicle.licensePlate }}</p>
           </div>
 
-          <div class="r-timeline">
+        <div class="r-timeline">
             <p><strong>Started:</strong> {{ formatTime(rental.startTime) }}</p>
             <p><strong>Ended:</strong> {{ formatTime(rental.endTime) }}</p>
+
+            <div v-if="rental.reservationPaymentStatus === 'SUCCEEDED'" class="payment-summary">
+              <p><strong>Reservation Payment:</strong> {{ rental.reservationPaymentMethod }}</p>
+              <p><strong>Charged at Booking:</strong> ${{ rental.reservationPaymentAmount?.toFixed(2) }}</p>
+            </div>
             
             <div class="cost-box" v-if="rental.status !== 'ACTIVE'">
               <strong>Total Invoice:</strong> <span class="cost">${{ rental.totalCost?.toFixed(2) }}</span>
@@ -245,6 +250,14 @@ function handlePay(rentalId: string) {
   margin-top: 1rem;
   padding-top: 1rem;
   border-top: 1px dashed #e2e8f0;
+}
+
+.payment-summary {
+  margin-top: 1rem;
+  padding: 0.85rem 1rem;
+  background: #eff6ff;
+  border-radius: 10px;
+  color: #1d4ed8;
 }
 
 .cost-box .cost {

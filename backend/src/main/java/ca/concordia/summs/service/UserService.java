@@ -101,6 +101,7 @@ public class UserService {
         map.put("phone",                user.getPhone());
         map.put("preferredCity",        user.getPreferredCity());
         map.put("preferredMobilityType",user.getPreferredMobilityType());
+        map.put("hasPaymentInfo",       user.getPaymentInfo() != null && !user.getPaymentInfo().isBlank());
         map.put("paymentInfo",          user.getPaymentInfo());
         return map;
     }

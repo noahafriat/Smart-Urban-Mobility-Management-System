@@ -58,6 +58,22 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function updatePaymentInfo(paymentInfo: string) {
+    if (!user.value) throw new Error('User not logged in')
+
+    loading.value = true
+    error.value = null
+    try {
+      const res = await api.put(`/users/${user.value.id}/profile`, { paymentInfo })
+      user.value = res.data as User
+    } catch (e: any) {
+      error.value = e.response?.data?.error ?? 'Failed to update payment method'
+      throw error.value
+    } finally {
+      loading.value = false
+    }
+  }
+
   // Logout
   function logout() {
     user.value = null
@@ -67,6 +83,6 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     user, error, loading,
     isLoggedIn, isProvider, isAdmin, isCitizen, isSysAdmin,
-    register, login, logout,
+    register, login, logout, updatePaymentInfo,
   }
 })

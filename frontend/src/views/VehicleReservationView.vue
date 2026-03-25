@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useRentalStore } from '../stores/rentals'
@@ -12,9 +12,23 @@ const rentalStore = useRentalStore()
 const vehicleStore = useVehicleStore()
 
 const vehicleId = route.params.id as string
+const reservationError = ref('')
+const selectedPaymentOption = ref<'saved' | 'new'>('saved')
+const cardholderName = ref('')
+const cardNumber = ref('')
+const expiryMonth = ref('')
+const expiryYear = ref('')
+const cvv = ref('')
+const savePaymentMethod = ref(true)
+
+const hasSavedPaymentMethod = computed(() => !!authStore.user?.paymentInfo)
+const formattedSavedPaymentMethod = computed(() => authStore.user?.paymentInfo || '')
 
 onMounted(() => {
   vehicleStore.fetchVehicleById(vehicleId)
+  if (!hasSavedPaymentMethod.value) {
+    selectedPaymentOption.value = 'new'
+  }
 })
 
 function getEnergyLabel(vehicle: any) {
@@ -24,14 +38,50 @@ function getEnergyLabel(vehicle: any) {
 
 async function startReservation() {
   if (!authStore.user) return
+  reservationError.value = ''
+
+  const useSavedPaymentMethod = selectedPaymentOption.value === 'saved' && hasSavedPaymentMethod.value
+  const paymentInfo = useSavedPaymentMethod ? undefined : buildFakeCardPayload()
+
+  if (!useSavedPaymentMethod && !paymentInfo) {
+    reservationError.value = 'Enter a cardholder name, card number, expiry, and CVV before reserving.'
+    return
+  }
 
   try {
-    await rentalStore.reserve(authStore.user.id, vehicleId)
+    await rentalStore.reserve(authStore.user.id, vehicleId, {
+      paymentInfo,
+      savePaymentMethod: !useSavedPaymentMethod && savePaymentMethod.value,
+    })
+    if (!useSavedPaymentMethod && savePaymentMethod.value && authStore.user) {
+      authStore.user.paymentInfo = maskCardNumber(cardNumber.value)
+      authStore.user.hasPaymentInfo = true
+    }
     router.push('/rentals')
   } catch (error) {
-    window.alert('Failed to reserve. This vehicle might have just been rented by another user.')
-    router.push('/vehicles')
+    reservationError.value = rentalStore.error || 'Failed to reserve. This vehicle might have just been rented by another user.'
   }
+}
+
+function buildFakeCardPayload() {
+  if (!cardholderName.value.trim()) return ''
+
+  const digits = cardNumber.value.replace(/\D/g, '')
+  const month = expiryMonth.value.trim()
+  const year = expiryYear.value.trim()
+  const securityCode = cvv.value.trim()
+
+  if (digits.length < 4 || !month || !year || securityCode.length < 3) {
+    return ''
+  }
+
+  return `${cardholderName.value.trim()}|${digits}|${month}|${year}|${securityCode}`
+}
+
+function maskCardNumber(rawCardNumber: string) {
+  const digits = rawCardNumber.replace(/\D/g, '')
+  if (digits.length < 4) return 'CARD'
+  return `CARD-${digits.slice(-4)}`
 }
 </script>
 
@@ -77,7 +127,7 @@ async function startReservation() {
         <div class="pricing-card">
           <h3>Pricing Information</h3>
           <div class="pricing-row">
-            <span>Unlock Fee</span>
+            <span>Reservation Charge</span>
             <strong>${{ vehicleStore.selectedVehicle.basePrice.toFixed(2) }}</strong>
           </div>
           <div class="pricing-row">
@@ -86,15 +136,60 @@ async function startReservation() {
           </div>
         </div>
 
+        <div class="payment-card">
+          <h3>Payment Method</h3>
+
+          <label v-if="hasSavedPaymentMethod" class="payment-option">
+            <input v-model="selectedPaymentOption" type="radio" value="saved" />
+            <span>Use saved payment method: <strong>{{ formattedSavedPaymentMethod }}</strong></span>
+          </label>
+
+          <label class="payment-option">
+            <input v-model="selectedPaymentOption" type="radio" value="new" />
+            <span>{{ hasSavedPaymentMethod ? 'Use a new credit card' : 'Add a credit card to continue' }}</span>
+          </label>
+
+          <div v-if="selectedPaymentOption === 'new'" class="payment-form">
+            <label>
+              Cardholder Name
+              <input v-model="cardholderName" type="text" placeholder="Alex Morgan" />
+            </label>
+            <label>
+              Card Number
+              <input v-model="cardNumber" type="text" inputmode="numeric" placeholder="4242 4242 4242 4242" />
+            </label>
+            <div class="payment-row">
+              <label>
+                Exp. Month
+                <input v-model="expiryMonth" type="text" inputmode="numeric" placeholder="08" />
+              </label>
+              <label>
+                Exp. Year
+                <input v-model="expiryYear" type="text" inputmode="numeric" placeholder="2028" />
+              </label>
+              <label>
+                CVV
+                <input v-model="cvv" type="password" inputmode="numeric" placeholder="123" />
+              </label>
+            </div>
+            <label class="save-option">
+              <input v-model="savePaymentMethod" type="checkbox" />
+              <span>Save this credit card to my account</span>
+            </label>
+            <p class="payment-note">Test mode only. Any card ending in <strong>0000</strong> will be declined.</p>
+          </div>
+        </div>
+
         <div class="actions">
+          <p v-if="reservationError" class="error-banner">{{ reservationError }}</p>
           <button 
             class="reserve-btn" 
             :disabled="rentalStore.loading"
             @click="startReservation"
           >
-            {{ rentalStore.loading ? 'Reserving...' : 'Start Reservation' }}
+            {{ rentalStore.loading ? 'Processing Payment...' : 'Pay & Start Reservation' }}
           </button>
-          <p class="terms">By clicking Start Reservation, you agree to the {{ vehicleStore.selectedVehicle.providerId }} terms of service.</p>
+          <p class="terms">Your reservation is confirmed only after the payment is processed successfully.</p>
         </div>
       </div>
     </div>
@@ -257,6 +352,66 @@ async function startReservation() {
   margin-top: 0.5rem;
 }
 
+.payment-card {
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.payment-card h3 {
+  margin: 0 0 1rem;
+  font-size: 1.1rem;
+  color: #9a3412;
+}
+
+.payment-option {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  color: #7c2d12;
+  margin-bottom: 0.9rem;
+}
+
+.payment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.payment-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  color: #7c2d12;
+  font-weight: 600;
+}
+
+.payment-form input {
+  border: 1px solid #fdba74;
+  border-radius: 10px;
+  padding: 0.8rem 0.9rem;
+  font-size: 1rem;
+}
+
+.payment-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.save-option {
+  flex-direction: row !important;
+  align-items: center !important;
+}
+
+.payment-note {
+  margin: 0;
+  color: #9a3412;
+  font-size: 0.9rem;
+}
+
 .pricing-card h3 {
   margin: 0 0 1rem;
   font-size: 1.1rem;
@@ -289,6 +444,15 @@ async function startReservation() {
   gap: 1rem;
 }
 
+.error-banner {
+  margin: 0;
+  padding: 0.9rem 1rem;
+  border-radius: 10px;
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
 .reserve-btn {
   width: 100%;
   padding: 1.2rem;
@@ -319,5 +483,20 @@ async function startReservation() {
   font-size: 0.85rem;
   color: #94a3b8;
   margin: 0;
+}
+
+@media (max-width: 640px) {
+  .reservation-view {
+    padding: 1rem;
+  }
+
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .payment-row {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
