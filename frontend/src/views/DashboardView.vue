@@ -19,7 +19,7 @@ const auth = useAuthStore()
     <main class="dash-content" :class="{ 'provider-layout': auth.isProvider }">
       <div class="card" v-if="auth.isCitizen">
         <h2>Your Commute</h2>
-        <p>You can search for vehicles, view transit, and reserve parking.</p>
+        <p>View and reserve cars and scooters.</p>
         <!-- Epic 2 Rental Components -->
         <RouterLink to="/vehicles" class="action-btn mb">Search Vehicles</RouterLink>
         <RouterLink to="/rentals" class="action-btn secondary">My Rentals</RouterLink>
@@ -38,7 +38,13 @@ const auth = useAuthStore()
       </div>
 
       <div class="card" v-if="auth.isCitizen">
-        <h2>🅿️ Parking Spaces</h2>
+        <h2>🚇 Public Transportation</h2>
+        <p>Plan routes, and access official transit information.</p>
+        <RouterLink to="/public-transport" class="action-btn" style="background: #7c3aed;">Open Transit Hub</RouterLink>
+      </div>
+
+      <div class="card" v-if="auth.isCitizen">
+        <h2>🅿️ Parking Garages</h2>
         <p>Find available parking spaces across the city and view live capacity data.</p>
         <RouterLink to="/parking-spaces" class="action-btn" style="background: #2b6cb0;">View Parking Spaces</RouterLink>
       </div>
@@ -70,20 +76,6 @@ const auth = useAuthStore()
         <h2>Fleet Analytics</h2>
         <p>View rental trends and activity for your fleet.</p>
         <RouterLink to="/analytics/rentals" class="action-btn">Rental Analytics</RouterLink>
-      </div>
-      
-      <div class="card profile-card" :class="{ 'provider-side-card': auth.isProvider }">
-        <h2>Profile Details</h2>
-        <div class="profile-list">
-          <div class="profile-row">
-            <span class="profile-label">Email</span>
-            <span class="profile-value">{{ auth.user?.email }}</span>
-          </div>
-          <div v-if="auth.user?.phone" class="profile-row">
-            <span class="profile-label">Phone</span>
-            <span class="profile-value">{{ auth.user?.phone }}</span>
-          </div>
-        </div>
       </div>
     </main>
   </div>
