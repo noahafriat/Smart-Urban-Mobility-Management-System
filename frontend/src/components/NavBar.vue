@@ -20,12 +20,12 @@ function doLogout() {
 
       <div class="nav-links" v-if="auth.isLoggedIn">
         <RouterLink to="/dashboard">Dashboard</RouterLink>
-        <RouterLink v-if="auth.isCitizen" to="/vehicles">Search Vehicles</RouterLink>
-        <RouterLink v-if="auth.isCitizen" to="/rentals">My Rentals</RouterLink>
-        <RouterLink v-if="auth.isCitizen" to="/bixi">BIXI Bikes</RouterLink>
-        <RouterLink v-if="auth.isCitizen" to="/public-transport">Public Transit</RouterLink>
-        <RouterLink v-if="auth.isCitizen" to="/parking-spaces">Parking Garages</RouterLink>
         <RouterLink v-if="auth.isCitizen" to="/mobility-map">Map</RouterLink>
+        <RouterLink v-if="auth.isCitizen" to="/public-transport">Public Transit</RouterLink>
+        <RouterLink v-if="auth.isCitizen" to="/vehicles">Search Vehicles</RouterLink>
+        <RouterLink v-if="auth.isCitizen" to="/bixi">BIXI Bikes</RouterLink>
+        <RouterLink v-if="auth.isCitizen" to="/parking-spaces">Parking Garages</RouterLink>
+        <RouterLink v-if="auth.isCitizen" to="/rentals">My Rentals</RouterLink>
         <RouterLink v-if="auth.isAdmin" to="/analytics/transit">Transit</RouterLink>
         <RouterLink v-if="auth.isAdmin || auth.isProvider" to="/analytics/rentals">Rentals</RouterLink>
         <RouterLink v-if="auth.isAdmin" to="/analytics/parking">Parking</RouterLink>

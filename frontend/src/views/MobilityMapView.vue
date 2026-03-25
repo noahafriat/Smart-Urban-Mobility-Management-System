@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { api } from '../api'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -37,6 +37,7 @@ interface ScooterDock {
 
 const mapRoot = ref<HTMLElement | null>(null)
 const route = useRoute()
+const router = useRouter()
 const loading = ref(false)
 const error = ref<string | null>(null)
 const vehicles = ref<Vehicle[]>([])
@@ -134,6 +135,15 @@ function initMap() {
     maxZoom: 19,
     attribution: '&copy; OpenStreetMap contributors',
   }).addTo(map)
+
+  // SPA Navigation for Leaflet Popups
+  mapRoot.value?.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement
+    if (target.classList.contains('popup-btn')) {
+      const path = target.getAttribute('data-path')
+      if (path) router.push(path)
+    }
+  })
 }
 
 function renderLayers() {
@@ -160,7 +170,7 @@ function renderLayers() {
       fillOpacity: 0.9,
       weight: 2,
     }).bindPopup(
-      `<strong>${car.vehicleCode}</strong><br>${car.model ?? 'Car'}<br>${car.locationCity} / ${car.locationZone}`
+      `<strong>${car.vehicleCode}</strong><br>${car.model ?? 'Car'}<br>${car.locationCity} / ${car.locationZone}<br><br><button data-path="/vehicles?selectedId=${car.id}&tab=CAR&city=${encodeURIComponent(car.locationCity)}" class="popup-btn">View Details →</button>`
     )
     marker.on('click', () => focusOnMarker(car.latitude, car.longitude))
     carsLayer.addLayer(marker)
@@ -175,7 +185,7 @@ function renderLayers() {
       fillOpacity: 0.9,
       weight: 2,
     }).bindPopup(
-      `<strong>${dock.zone}</strong><br>${dock.city}<br>Scooters parked: ${dock.parkedCount}<br>Avg battery: ${Math.round(dock.avgBattery)}%`
+      `<strong>${dock.zone}</strong><br>${dock.city}<br>Scooters parked: ${dock.parkedCount}<br>Avg battery: ${Math.round(dock.avgBattery)}%<br><br><button data-path="/vehicles?selectedZone=${encodeURIComponent(dock.zone)}&tab=SCOOTER&city=${encodeURIComponent(dock.city)}" class="popup-btn">View Details →</button>`
     )
     marker.on('click', () => focusOnMarker(dock.lat, dock.lon))
     scootersLayer.addLayer(marker)
@@ -190,7 +200,7 @@ function renderLayers() {
       fillOpacity: 0.9,
       weight: 2,
     }).bindPopup(
-      `<strong>${station.name}</strong><br>Bikes: ${station.bikesAvailable}<br>Docks: ${station.docksAvailable}`
+      `<strong>${station.name}</strong><br>Bikes: ${station.bikesAvailable}<br>Docks: ${station.docksAvailable}<br><br><button data-path="/bixi?station=${encodeURIComponent(station.name)}" class="popup-btn">View Details →</button>`
     )
     marker.on('click', () => focusOnMarker(station.lat, station.lon))
     bixiLayer.addLayer(marker)
@@ -205,7 +215,7 @@ function renderLayers() {
       fillOpacity: 0.9,
       weight: 2,
     }).bindPopup(
-      `<strong>${garage.name}</strong><br>Available Spaces: ${garage.availableSpaces}/${garage.totalSpaces}`
+      `<strong>${garage.name}</strong><br>Available Spaces: ${garage.availableSpaces}/${garage.totalSpaces}<br><br><button data-path="/parking-spaces?selectedId=${garage.id}" class="popup-btn">View Details →</button>`
     )
     marker.on('click', () => focusOnMarker(garage.latitude, garage.longitude))
     garageLayer.addLayer(marker)
@@ -243,7 +253,7 @@ async function refreshMapData() {
   <div class="mobility-map-view">
     <header class="header">
       <div>
-        <h1>Montreal Mobility Map</h1>
+        <h1>Mobility Map</h1>
         <p>Cars, scooters, and BIXI stations in one live view.</p>
       </div>
       <button class="refresh-btn" :disabled="loading" @click="refreshMapData">
@@ -345,5 +355,22 @@ async function refreshMapData() {
   background: #fff1f2;
   color: #be123c;
   border: 1px solid #fecdd3;
+}
+
+:deep(.popup-btn) {
+  display: inline-block;
+  background: none;
+  border: none;
+  padding: 0;
+  color: #3b82f6;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+:deep(.popup-btn:hover) {
+  text-decoration: underline;
 }
 </style>

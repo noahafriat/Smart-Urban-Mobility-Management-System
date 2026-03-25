@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useRentalStore } from '../stores/rentals'
 import { useVehicleStore, type Vehicle } from '../stores/vehicles'
@@ -12,12 +12,30 @@ const router = useRouter()
 
 const selectedCity = ref('All')
 const activeTab = ref<'SCOOTER' | 'CAR'>('SCOOTER')
+const route = useRoute()
 
 onMounted(() => {
-  if (auth.user?.preferredCity) {
+  if (route.query.city) {
+    selectedCity.value = route.query.city as string
+  } else if (auth.user?.preferredCity) {
     selectedCity.value = auth.user.preferredCity
   }
   handleSearch()
+
+  // Handle incoming highlights from map
+  if (route.query.tab) {
+    activeTab.value = route.query.tab as 'SCOOTER' | 'CAR'
+  }
+  if (route.query.selectedZone) {
+    expandedGroups.value.add(route.query.selectedZone as string)
+  }
+  if (route.query.selectedId) {
+    // Find the zone for this vehicle and expand it
+    watch(() => vehicleStore.availableVehicles, (vehicles) => {
+      const v = vehicles.find(veh => veh.id === route.query.selectedId)
+      if (v) expandedGroups.value.add(v.locationZone)
+    }, { immediate: true })
+  }
 })
 
 function handleSearch() {
@@ -129,7 +147,12 @@ function getEnergyLabel(vehicle: Vehicle) {
           No scooter docks found in this area right now.
         </div>
         
-        <article v-for="dock in scooterDocks" :key="dock.zone" class="loc-card">
+        <article 
+          v-for="dock in scooterDocks" 
+          :key="dock.zone" 
+          class="loc-card"
+          :class="{ 'highlighted-zone': dock.zone === route.query.selectedZone }"
+        >
           <div class="loc-summary" @click="toggleGroup(dock.zone)">
             <div class="loc-titles">
               <h3>{{ dock.zone }}</h3>
@@ -157,7 +180,12 @@ function getEnergyLabel(vehicle: Vehicle) {
           
           <transition name="slide">
             <div v-if="isExpanded(dock.zone)" class="loc-expanded">
-              <div v-for="v in dock.vehicles" :key="v.id" class="individual-vehicle">
+              <div 
+                v-for="v in dock.vehicles" 
+                :key="v.id" 
+                class="individual-vehicle"
+                :class="{ 'highlighted-vehicle': v.id === route.query.selectedId }"
+              >
                 <div class="iv-info">
                   <span class="iv-code">ID: {{ v.vehicleCode }}</span>
                   <span class="iv-energy" :class="v.batteryLevel < 30 ? 'low-energy' : ''">
@@ -184,7 +212,12 @@ function getEnergyLabel(vehicle: Vehicle) {
           No car rentals found in this area right now.
         </div>
         
-        <article v-for="zone in carZones" :key="zone.zone" class="loc-card">
+        <article 
+          v-for="zone in carZones" 
+          :key="zone.zone" 
+          class="loc-card"
+          :class="{ 'highlighted-zone': zone.zone === route.query.selectedZone }"
+        >
           <div class="loc-summary" @click="toggleGroup(zone.zone)">
             <div class="loc-titles">
               <h3>{{ zone.zone }}</h3>
@@ -212,7 +245,12 @@ function getEnergyLabel(vehicle: Vehicle) {
           
           <transition name="slide">
             <div v-if="isExpanded(zone.zone)" class="loc-expanded">
-              <div v-for="v in zone.vehicles" :key="v.id" class="individual-vehicle">
+              <div 
+                v-for="v in zone.vehicles" 
+                :key="v.id" 
+                class="individual-vehicle"
+                :class="{ 'highlighted-vehicle': v.id === route.query.selectedId }"
+              >
                 <div class="iv-info">
                   <span class="iv-code">{{ v.model }} • Plate: {{ v.licensePlate }}</span>
                   <span class="iv-energy" :class="v.fuelLevel < 25 ? 'low-energy' : ''">
@@ -558,5 +596,17 @@ function getEnergyLabel(vehicle: Vehicle) {
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
+}
+
+/* Highlight effects */
+.highlighted-zone {
+  border: 2px solid #3b82f6 !important;
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.3) !important;
+}
+
+.highlighted-vehicle {
+  border: 2px solid #3b82f6 !important;
+  background-color: #eff6ff !important;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
 }
 </style>
