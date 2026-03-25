@@ -196,14 +196,14 @@ public class AnalyticsService {
         Map<String, Long> parkedPerZone = fleet.stream()
                 .filter(v -> v.getStatus() == VehicleStatus.AVAILABLE)
                 .collect(Collectors.groupingBy(
-                        v -> v.getLocationCity() + " / " + v.getLocationZone(),
+                        v -> v.getLocationCity() + " / " + v.getLocationZone() + " (" + getVehicleModelOrScooter(v) + ")",
                         TreeMap::new, Collectors.counting()));
 
         // Occupancy per zone (total vehicles regardless of status)
         Map<String, Long> totalPerZone = fleet.stream()
                 .filter(v -> v.getStatus() != VehicleStatus.INACTIVE)
                 .collect(Collectors.groupingBy(
-                        v -> v.getLocationCity() + " / " + v.getLocationZone(),
+                        v -> v.getLocationCity() + " / " + v.getLocationZone() + " (" + getVehicleModelOrScooter(v) + ")",
                         TreeMap::new, Collectors.counting()));
 
         // Occupancy rate per zone (% of zone capacity that is "in use")

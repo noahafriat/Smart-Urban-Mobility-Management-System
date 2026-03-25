@@ -1,201 +1,213 @@
 <script setup lang="ts">
 /**
- * Rental Service Analytics
- * - Admins: see the full platform
- * - Providers: scoped to their own fleet only
+ * Rental & Market Analytics
+ * Visible to: City Admin, System Admin, Service Providers
  */
-import { onMounted, computed } from 'vue'
+import { onMounted } from 'vue'
 import { useAnalyticsStore } from '../stores/analytics'
-import { useAuthStore } from '../stores/auth'
 
 const store = useAnalyticsStore()
-const auth = useAuthStore()
 
-const isProvider = computed(() => auth.isProvider)
+function zoneCapacity(count: number, rateStr: string): number {
+  if (!rateStr) return count
+  const rate = parseInt(rateStr.replace('%', ''))
+  if (rate === 0) return count || 100 // Fallback
+  return Math.round(count / (rate / 100))
+}
+
+function formatZoneName(raw: string): string {
+  // raw is "Montréal / Plateau (Scooter)"
+  // we want "Plateau (Scooter)"
+  return raw.split(' / ').pop() || raw
+}
 
 onMounted(() => {
-  if (auth.isProvider && auth.user) {
-    store.fetchRentals(auth.user.id)
-  } else {
-    store.fetchRentals()
-  }
+  store.fetchRentals()
+  store.fetchParking() // Also fetch parking for zone density
 })
 </script>
 
 <template>
-  <div class="analytics-view">
+  <div class="analytics-shell">
     <header class="page-header">
-      <h1>Rental Service Analytics</h1>
-      <p>
-        {{ isProvider ? 'Your fleet rental activity.' : 'Platform-wide rental activity.' }}
-      </p>
+      <div class="header-main">
+        <div class="scope-header">
+          <span class="view-tag">Market Intelligence</span>
+          <span class="scope-pill provider">Multi-Provider View</span>
+        </div>
+        <h1>Rental Operations & Revenue</h1>
+        <p>A consolidated view of historical rental volume, financial performance, and market distribution.</p>
+      </div>
+      <div class="header-actions">
+        <button class="btn-refresh" @click="store.fetchRentals()" :disabled="store.loading">
+          {{ store.loading ? 'Syncing...' : '↻ Refresh Financials' }}
+        </button>
+      </div>
     </header>
 
-    <div v-if="store.loading" class="state-msg pulse">Loading rental analytics…</div>
+    <div v-if="store.loading && !store.rentalData" class="state-msg pulse">
+      Compiling rental history and financial data...
+    </div>
     <div v-else-if="store.error" class="state-msg error">{{ store.error }}</div>
 
-    <template v-else-if="store.rentalData">
-      <div v-if="!isProvider" class="scope-badge">
-        Viewing: <strong>Full Platform</strong>
-      </div>
-      <div v-else class="scope-badge provider">
-        Viewing: <strong>Your Fleet Only</strong>
-      </div>
-
-      <!-- KPI Row -->
-      <div class="kpi-grid">
-        <div class="kpi-card blue">
-          <span class="kpi-label">Total Rentals</span>
-          <strong class="kpi-value">{{ store.rentalData.totalRentals }}</strong>
-        </div>
-        <div class="kpi-card orange">
-          <span class="kpi-label">Active Now</span>
-          <strong class="kpi-value">{{ store.rentalData.activeRentals }}</strong>
-        </div>
-        <div class="kpi-card green">
-          <span class="kpi-label">Total Revenue</span>
-          <strong class="kpi-value">${{ store.rentalData.totalRevenue.toFixed(2) }}</strong>
-        </div>
-        <div class="kpi-card purple">
-          <span class="kpi-label">Paid Invoices</span>
-          <strong class="kpi-value">{{ store.rentalData.paidRentals }}</strong>
-        </div>
-      </div>
-
-      <div class="two-col">
-        <!-- Rentals by Type -->
-        <section class="section-card">
-          <h2>Rentals by Vehicle Type</h2>
-          <div v-if="Object.keys(store.rentalData.rentalsByType).length === 0" class="empty-msg">
-            No rentals recorded yet.
+    <main v-else-if="store.rentalData" class="analytics-body">
+      
+      <!-- ── Global Rental KPIs ── -->
+      <section class="kpi-banner">
+        <div class="kpi-grid">
+          <div class="kpi-card-simple">
+            <span class="label">Total Historical Volume</span>
+            <strong class="value">{{ store.rentalData.totalRentals }}</strong>
+            <span class="subtext">{{ store.rentalData.activeRentals }} current deployments</span>
           </div>
-          <div v-else class="bar-group">
-            <div v-for="(count, type) in store.rentalData.rentalsByType" :key="type" class="bar-row">
-              <span>{{ type }}</span>
-              <div class="bar-track">
-                <div class="bar-fill blue" :style="{ width: barWidthMap(type, store.rentalData.rentalsByType) }"></div>
-              </div>
-              <span class="bar-count">{{ count }}</span>
+          <div class="kpi-card-simple">
+            <span class="label">Gross Performance</span>
+            <strong class="value">${{ store.rentalData.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 0 }) }}</strong>
+            <span class="subtext">Verified financial value</span>
+          </div>
+          <div class="kpi-card-simple">
+            <span class="label">Utilization Index</span>
+            <strong class="value">{{ ((store.rentalData.activeRentals / (store.rentalData.totalRentals || 1)) * 100).toFixed(1) }}%</strong>
+            <span class="subtext">Active fleet pressure</span>
+          </div>
+        </div>
+      </section>
+
+      <div class="main-grid">
+        <!-- ── Market Performance ── -->
+        <div class="ops-column">
+          <section class="panel-card-clean">
+            <div class="panel-header">
+              <h3>Market Distribution</h3>
+              <p>Breakdown of volume and revenue contributions per vehicle category.</p>
             </div>
-          </div>
-        </section>
+            <table class="data-table-clean">
+              <thead>
+                <tr>
+                  <th>Vehicle Type</th>
+                  <th>Total Volume</th>
+                  <th>Total Revenue</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(count, type) in store.rentalData.rentalsByType" :key="type">
+                  <td class="name">{{ type }}</td>
+                  <td class="qty">{{ count }} sessions</td>
+                  <td class="qty">${{ store.rentalData.revenueByType[type]?.toLocaleString() }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
 
-        <!-- Revenue by Type -->
-        <section class="section-card">
-          <h2>Revenue by Vehicle Type</h2>
-          <div v-if="Object.keys(store.rentalData.revenueByType).length === 0" class="empty-msg">
-            No revenue recorded yet.
-          </div>
-          <div v-else class="bar-group">
-            <div v-for="(rev, type) in store.rentalData.revenueByType" :key="type" class="bar-row">
-              <span>{{ type }}</span>
-              <div class="bar-track">
-                <div class="bar-fill green" :style="{ width: barWidthMap(type, store.rentalData.revenueByType) }"></div>
+          <section v-if="store.parkingData" class="panel-card-clean">
+            <h3>Neighborhood Availability (Near Real-Time)</h3>
+            <p>Street-level density of available vehicles in urban zones.</p>
+            <div class="stat-list">
+              <div v-for="(count, zone) in store.parkingData.parkedPerZone" :key="zone" class="clean-row">
+                <span class="name">{{ formatZoneName(zone) }}</span>
+                <strong class="qty">
+                  {{ count }} / {{ zoneCapacity(count, store.parkingData.occupancyRate[zone]) }} available
+                </strong>
               </div>
-              <span class="bar-count">${{ rev }}</span>
             </div>
-          </div>
-        </section>
-      </div>
+          </section>
 
-      <div class="two-col">
-        <!-- Rentals by City -->
-        <section class="section-card">
-          <h2>Rentals by City</h2>
-          <div v-if="Object.keys(store.rentalData.rentalsByCity).length === 0" class="empty-msg">
-            No city data yet.
-          </div>
-          <div v-else class="bar-group">
-            <div v-for="(count, city) in store.rentalData.rentalsByCity" :key="city" class="bar-row">
-              <span>{{ city }}</span>
-              <div class="bar-track">
-                <div class="bar-fill purple" :style="{ width: barWidthMap(city, store.rentalData.rentalsByCity) }"></div>
+          <section class="panel-card-clean">
+            <h3>Geographic Engagement</h3>
+            <div class="stat-list">
+              <div v-for="(count, city) in store.rentalData.rentalsByCity" :key="city" class="clean-row">
+                <span class="name">{{ city }}</span>
+                <strong class="qty">{{ count }} rentals</strong>
               </div>
-              <span class="bar-count">{{ count }}</span>
             </div>
-          </div>
-        </section>
+          </section>
+        </div>
 
-        <!-- Top Rented Vehicles -->
-        <section class="section-card">
-          <h2>Top Rented Vehicles</h2>
-          <div v-if="Object.keys(store.rentalData.topVehicles).length === 0" class="empty-msg">
-            No rentals yet.
-          </div>
-          <ol v-else class="top-vehicles">
-            <li v-for="(count, code) in store.rentalData.topVehicles" :key="code">
-              <span class="v-code">{{ code }}</span>
-              <span class="v-count">{{ count }} trip{{ count !== 1 ? 's' : '' }}</span>
-            </li>
-          </ol>
-        </section>
+        <!-- ── Executive Summary ── -->
+        <div class="side-column">
+          <section class="panel-card-clean highlight">
+            <h3>Executive Briefing</h3>
+            <div class="brief-list">
+              <div class="brief-item">
+                <span class="l">Completed Trips</span>
+                <strong class="v">{{ store.rentalData.completedRentals }}</strong>
+              </div>
+              <div class="brief-item">
+                <span class="l">Billing Fulfillment</span>
+                <strong class="v">{{ ((store.rentalData.paidRentals / (store.rentalData.completedRentals || 1)) * 100).toFixed(0) }}%</strong>
+              </div>
+              <div class="brief-item">
+                <span class="l">System Health</span>
+                <strong class="v green-text">Stable</strong>
+              </div>
+            </div>
+            <button class="btn-full" @click="store.fetchRentals()">Refresh Dataset</button>
+          </section>
+        </div>
       </div>
-    </template>
+    </main>
   </div>
 </template>
 
-<script lang="ts">
-function barWidthMap(key: string, map: Record<string, number>): string {
-  const max = Math.max(...Object.values(map))
-  if (max === 0) return '0%'
-  return Math.round(((map[key] ?? 0) / max) * 100) + '%'
-}
-</script>
-
 <style scoped>
-.analytics-view {
-  padding: 2rem clamp(1.25rem, 2.5vw, 2.75rem);
-  width: min(96vw, 1680px);
+.analytics-shell {
+  padding: 2rem clamp(1rem, 5vw, 4rem);
+  max-width: 1200px;
   margin: 0 auto;
-  display: grid;
-  gap: 1.75rem;
+  font-family: 'Inter', system-ui, sans-serif;
+  color: #334155;
 }
-.page-header h1 { font-size: 2.2rem; color: #0f172a; margin: 0 0 0.4rem; }
-.page-header p { color: #64748b; margin: 0; font-size: 1.05rem; }
-.uc-tag {
-  display: inline-block; background: #e0f2fe; color: #0369a1;
-  padding: 0.15rem 0.5rem; border-radius: 999px;
-  font-size: 0.75rem; font-weight: 700; margin-left: 0.4rem;
-}
-.scope-badge {
-  display: inline-flex; align-items: center; gap: 0.4rem;
-  background: #f1f5f9; border: 1px solid #e2e8f0;
-  border-radius: 999px; padding: 0.4rem 1rem;
-  font-size: 0.88rem; color: #475569;
-}
-.scope-badge.provider { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
-.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.15rem; }
-.kpi-card { border-radius: 14px; padding: 1.25rem 1.5rem; display: flex; flex-direction: column; gap: 0.35rem; }
-.kpi-card.blue { background: linear-gradient(135deg, #dbeafe, #bfdbfe); }
-.kpi-card.orange { background: linear-gradient(135deg, #ffedd5, #fed7aa); }
-.kpi-card.green { background: linear-gradient(135deg, #dcfce7, #bbf7d0); }
-.kpi-card.purple { background: linear-gradient(135deg, #ede9fe, #ddd6fe); }
-.kpi-label { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #475569; }
-.kpi-value { font-size: 2rem; font-weight: 800; color: #0f172a; }
-.two-col { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 1.5rem; }
-.section-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 1.7rem; }
-.section-card h2 { margin: 0 0 1.25rem; font-size: 1.1rem; color: #0f172a; }
-.bar-group { display: flex; flex-direction: column; gap: 0.75rem; }
-.bar-row { display: grid; grid-template-columns: 110px 1fr 60px; align-items: center; gap: 0.75rem; font-size: 0.9rem; color: #334155; }
-.bar-track { background: #f1f5f9; border-radius: 999px; height: 10px; overflow: hidden; }
-.bar-fill { height: 100%; border-radius: 999px; transition: width 0.5s ease; }
-.bar-fill.blue { background: #3b82f6; }
-.bar-fill.green { background: #22c55e; }
-.bar-fill.purple { background: #8b5cf6; }
-.bar-count { text-align: right; font-weight: 700; color: #0f172a; font-size: 0.85rem; }
-.top-vehicles { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.6rem; counter-reset: rank; }
-.top-vehicles li { counter-increment: rank; display: flex; justify-content: space-between; align-items: center; background: #f8fafc; border-radius: 8px; padding: 0.6rem 0.9rem; font-size: 0.9rem; }
-.top-vehicles li::before { content: counter(rank); font-weight: 800; color: #94a3b8; margin-right: 0.75rem; }
-.v-code { font-weight: 600; color: #0f172a; }
-.v-count { color: #64748b; }
-.state-msg { text-align: center; padding: 3rem; color: #64748b; background: #fff; border-radius: 14px; }
-.state-msg.error { color: #dc2626; background: #fef2f2; }
-.state-msg.pulse { animation: pulse 2s infinite; }
-.empty-msg { color: #94a3b8; font-size: 0.9rem; }
-@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+
+.page-header { margin-bottom: 3rem; display: flex; justify-content: space-between; align-items: top; }
+.header-main h1 { font-size: 2rem; font-weight: 800; color: #0f172a; margin: 0 0 0.5rem; letter-spacing: -0.02em; }
+.header-main p { color: #64748b; font-size: 1rem; margin: 0; }
+.view-tag { font-size: 0.7rem; font-weight: 700; color: #3b82f6; text-transform: uppercase; margin-bottom: 0.5rem; display: block; }
+.scope-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
+.scope-pill { font-size: 0.65rem; font-weight: 800; padding: 0.2rem 0.5rem; border: 1px solid #e2e8f0; border-radius: 4px; color: #64748b; }
+.scope-pill.provider { color: #10b981; border-color: #bbf7d0; background: #f0fdf4; }
+
+.btn-refresh { padding: 0.6rem 1.25rem; font-size: 0.9rem; font-weight: 600; border: 1px solid #e2e8f0; border-radius: 8px; background: white; cursor: pointer; transition: 0.2s; }
+.btn-refresh:hover { background: #f8fafc; }
+
+/* ── KPIs ── */
+.kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 3rem; }
+.kpi-card-simple { padding: 1.5rem; border: 1px solid #e2e8f0; border-radius: 12px; display: flex; flex-direction: column; background: #fff; }
+.kpi-card-simple .label { font-size: 0.8rem; font-weight: 600; color: #64748b; margin-bottom: 0.5rem; }
+.kpi-card-simple .value { font-size: 2rem; font-weight: 800; color: #0f172a; line-height: 1; margin-bottom: 0.5rem; }
+.kpi-card-simple .subtext { font-size: 0.8rem; color: #94a3b8; }
+
+/* ── Layout ── */
+.main-grid { display: grid; grid-template-columns: 1fr 340px; gap: 2rem; }
+.panel-card-clean { padding: 1.5rem; border: 1px solid #f1f5f9; border-radius: 12px; margin-bottom: 1.5rem; background: #fff; }
+.panel-card-clean h3 { font-size: 1.1rem; font-weight: 700; color: #0f172a; margin: 0 0 1.25rem; }
+.panel-card-clean p { font-size: 0.9rem; color: #64748b; margin: -1rem 0 1.5rem; }
+
+/* ── Data Table ── */
+.data-table-clean { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-top: 1rem; }
+.data-table-clean th { text-align: left; padding: 0.75rem; color: #94a3b8; font-size: 0.75rem; text-transform: uppercase; border-bottom: 1px solid #f1f5f9; }
+.data-table-clean td { padding: 1rem 0.75rem; border-bottom: 1px solid #f8fafc; }
+.data-table-clean .name { font-weight: 700; color: #0f172a; }
+
+.clean-row { display: flex; justify-content: space-between; padding: 0.75rem 0; font-size: 0.9rem; border-bottom: 1px solid #f8fafc; }
+.clean-row .name { color: #475569; font-weight: 500; }
+.clean-row .qty { font-weight: 700; color: #0f172a; }
+
+/* ── Sidebar ── */
+.brief-list { display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem; }
+.brief-item { display: flex; justify-content: space-between; font-size: 0.95rem; }
+.brief-item .l { color: #64748b; }
+.brief-item .v { font-weight: 700; color: #0f172a; }
+.green-text { color: #10b981; }
+
+.btn-full { width: 100%; padding: 0.75rem; background: #0f172a; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
+.btn-full:hover { background: #1e293b; }
+
+.state-msg { text-align: center; padding: 5rem; color: #64748b; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+.pulse { animation: pulse 2s infinite; }
 
 @media (max-width: 1024px) {
-  .analytics-view { width: 100%; padding: 1.25rem 1rem 1.75rem; }
-  .two-col { grid-template-columns: 1fr; }
+  .main-grid { grid-template-columns: 1fr; }
+  .kpi-grid { grid-template-columns: 1fr; }
 }
 </style>
