@@ -106,7 +106,7 @@ onMounted(() => {
               <div v-for="(count, zone) in store.parkingData.parkedPerZone" :key="zone" class="clean-row">
                 <span class="name">{{ formatZoneName(zone) }}</span>
                 <strong class="qty">
-                  {{ count }} / {{ zoneCapacity(count, store.parkingData.occupancyRate[zone]) }} available
+                  {{ count }} / {{ zoneCapacity(count, store.parkingData.occupancyRate[zone]!) }} available
                 </strong>
               </div>
             </div>

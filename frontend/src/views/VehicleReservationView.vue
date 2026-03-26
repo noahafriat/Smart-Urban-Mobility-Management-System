@@ -138,9 +138,9 @@ async function startReservation() {
       <!-- ── Right: Checkout ── -->
       <section class="payment-panel">
          <h2>Authorize Mobility Session</h2>
-         <p class="p-sub">Select or provision a payment instrument to finalize your booking.</p>
+         <p class="p-sub">Select a payment method to finalize your booking.</p>
 
-         <div class="method-selector">
+          <div class="method-selector">
             <div 
               v-for="method in savedMethods" 
               :key="method" 
@@ -148,10 +148,10 @@ async function startReservation() {
               :class="{ selected: selectedPaymentMethod === method }"
               @click="selectedPaymentMethod = method"
             >
-               <input type="radio" :value="method" v-model="selectedPaymentMethod" />
+               <div class="radio-custom"></div>
                <div class="m-info">
-                  <span class="m-type">{{ method.split('-')[0] }}</span>
-                  <span class="m-val">{{ method.split('-')[1] }}</span>
+                  <div class="brand-badge">{{ method.split('-')[0] }}</div>
+                  <span class="m-val">•••• {{ method.split('-')[1] }}</span>
                </div>
             </div>
 
@@ -160,13 +160,13 @@ async function startReservation() {
               :class="{ selected: selectedPaymentMethod === 'NEW' }"
               @click="selectedPaymentMethod = 'NEW'"
             >
-               <input type="radio" value="NEW" v-model="selectedPaymentMethod" />
+               <div class="radio-custom"></div>
                <div class="m-info">
-                  <span class="m-label">Alternative Instrument</span>
+                  <span class="m-label">New Payment Method</span>
                   <span class="m-val">Add a new credit card</span>
                </div>
             </div>
-         </div>
+          </div>
 
          <!-- New Card Form -->
          <div v-if="selectedPaymentMethod === 'NEW'" class="new-card-form">
@@ -176,7 +176,7 @@ async function startReservation() {
                 <option value="VISA">VISA</option>
                 <option value="MASTERCARD">Mastercard</option>
                 <option value="AMEX">Amex</option>
-                <option value="DISCOVER">Discover</option>
+                <option value="OTHER">Other</option>
               </select>
             </div>
             <div class="form-row">
@@ -202,7 +202,7 @@ async function startReservation() {
             </div>
             <label class="save-check">
                <input type="checkbox" v-model="savePaymentMethod" />
-               <span>Store this instrument for future city mobility</span>
+               <span>Store this card for future trips</span>
             </label>
          </div>
 
@@ -267,24 +267,62 @@ async function startReservation() {
 .payment-panel h2 { font-size: 1.85rem; font-weight: 900; margin: 0; }
 .p-sub { color: #64748b; margin: 0.5rem 0 2.5rem; font-size: 1.05rem; }
 
-.method-selector { display: flex; flex-direction: column; gap: 0.85rem; margin-bottom: 2.5rem; }
+.method-selector { display: flex; flex-direction: column; gap: 1rem; margin-bottom: 2.5rem; }
 .method-option { 
   display: flex; 
   align-items: center; 
-  gap: 1.25rem; 
-  padding: 1.25rem; 
-  border-radius: 20px; 
+  gap: 1.5rem; 
+  padding: 1.5rem; 
+  border-radius: 24px; 
   border: 2px solid #f1f5f9; 
   cursor: pointer; 
-  transition: 0.2s;
+  transition: 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   background: #fdfdfe;
+  position: relative;
 }
-.method-option:hover { border-color: #cbd5e1; background: white; }
-.method-option.selected { border-color: #3b82f6; background: #eff6ff; }
+.method-option:hover { border-color: #cbd5e1; background: white; transform: scale(1.015); }
+.method-option.selected { border-color: #3b82f6; background: #f0f7ff; box-shadow: 0 10px 25px -10px rgba(59, 130, 246, 0.15); }
 
-.m-type { text-transform: uppercase; font-size: 0.65rem; font-weight: 900; background: white; padding: 0.3rem 0.6rem; border-radius: 8px; border: 1px solid #e2e8f0; display: block; margin-bottom: 0.25rem; width: fit-content; }
-.m-val { font-weight: 800; color: #1e293b; font-family: 'JetBrains Mono', monospace; }
-.m-label { font-size: 0.75rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; display: block; }
+.radio-custom {
+  width: 22px;
+  height: 22px;
+  border: 2px solid #cbd5e1;
+  border-radius: 50%;
+  background: white;
+  position: relative;
+  transition: 0.2s;
+  flex-shrink: 0;
+}
+.method-option.selected .radio-custom {
+  border-color: #3b82f6;
+}
+.method-option.selected .radio-custom::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 12px;
+  height: 12px;
+  background: #3b82f6;
+  border-radius: 50%;
+}
+
+.m-info { display: flex; flex-direction: column; gap: 0.3rem; }
+.brand-badge { 
+  font-size: 0.65rem; 
+  font-weight: 900; 
+  background: white; 
+  padding: 0.35rem 0.6rem; 
+  border-radius: 8px; 
+  border: 1px solid #e2e8f0; 
+  width: fit-content; 
+  color: #1e293b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.m-val { font-weight: 800; color: #1e293b; font-family: 'JetBrains Mono', monospace; font-size: 1.05rem; }
+.m-label { font-size: 0.65rem; font-weight: 900; color: #94a3b8; text-transform: uppercase; display: block; letter-spacing: 0.05em; }
 
 .new-card-form { display: flex; flex-direction: column; gap: 1.25rem; padding: 1.75rem; background: #f8fafc; border-radius: 24px; border: 1px solid #f1f5f9; margin-bottom: 2.5rem; }
 .form-row label { display: block; font-size: 0.75rem; font-weight: 800; color: #94a3b8; margin-bottom: 0.5rem; }
