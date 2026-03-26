@@ -18,6 +18,7 @@ public class User {
 
     // Optional profile fields
     private String phone;
+    private String providerType;
 
     // Simulated payment — supports multiple fake cards
     private java.util.List<String> paymentMethods = new java.util.ArrayList<>();

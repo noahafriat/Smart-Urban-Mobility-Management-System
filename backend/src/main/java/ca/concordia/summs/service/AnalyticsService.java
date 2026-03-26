@@ -189,8 +189,12 @@ public class AnalyticsService {
      * UC-20: Parking / Fleet Utilization Analytics (Admin only)
      * Models parking-zone utilization via vehicle locations as a proxy.
      */
-    public Map<String, Object> getParkingAnalytics() {
-        List<Vehicle> fleet = vehicleRepository.findAll();
+    public Map<String, Object> getParkingAnalytics(String providerId) {
+        boolean isGlobal = (providerId == null || providerId.isBlank());
+        List<Vehicle> allVehicles = vehicleRepository.findAll();
+        List<Vehicle> fleet = isGlobal ? allVehicles : allVehicles.stream()
+                .filter(v -> v.getProviderId().equalsIgnoreCase(providerId))
+                .toList();
 
         // Vehicles parked (= available) per zone
         Map<String, Long> parkedPerZone = fleet.stream()
@@ -236,6 +240,7 @@ public class AnalyticsService {
         result.put("totalAvailableInZones", totalAvailable);
         result.put("overallUtilizationRate", Math.round(utilizationRate * 10.0) / 10.0 + "%");
         result.put("parkedPerZone", parkedPerZone);
+        result.put("totalPerZone", totalPerZone);
         result.put("occupancyRate", occupancyRate);
         result.put("maintenancePerCity", maintenancePerCity);
 

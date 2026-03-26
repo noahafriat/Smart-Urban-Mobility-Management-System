@@ -19,6 +19,7 @@ const auth = useAuthStore()
 
     <main class="dash-content" :class="{ 'provider-layout': auth.isProvider }">
       <!-- ── Citizen Interaction Hub ── -->
+      <!-- Commute / Search (Typically for Citizens/Renters) -->
       <div class="card" v-if="auth.isCitizen">
         <header class="card-header">
           <div class="icon-box">🏠</div>
@@ -46,18 +47,6 @@ const auth = useAuthStore()
         </div>
       </div>
 
-      <div class="card" v-if="auth.isCitizen">
-        <header class="card-header">
-          <div class="icon-box">🗺️</div>
-          <div class="header-text">
-            <h2>Mobility Map</h2>
-            <p>View car rentals, scooter docks, BIXI, and garages on one live map.</p>
-          </div>
-        </header>
-        <div class="card-footer">
-          <RouterLink to="/mobility-map" class="action-btn" style="background: #0f766e;">Open Mobility Map</RouterLink>
-        </div>
-      </div>
 
       <div class="card" v-if="auth.isCitizen">
         <header class="card-header">
@@ -72,18 +61,16 @@ const auth = useAuthStore()
         </div>
       </div>
 
-      <!-- ── Provider Command Center ── -->
+      <!-- ── Provider Specific Tools ── -->
       <div class="card provider-main-card" v-if="auth.isProvider">
-        <h2>Fleet Overview</h2>
-        <p>Manage your fleet of scooters and cars.</p>
+        <header class="card-header">
+           <div class="icon-box">{{ auth.user?.providerType === 'CAR' ? '🚗' : '🛴' }}</div>
+           <div class="header-text">
+              <h2>Fleet Operations</h2>
+              <p>Manage your vehicle inventory and search visibility.</p>
+           </div>
+        </header>
         <ProviderFleetManager v-if="auth.user" :provider-id="auth.user.id" />
-      </div>
-
-      <!-- Provider Fleet Analytics card -->
-      <div class="card provider-side-card" v-if="auth.isProvider">
-        <h2>Fleet Analytics</h2>
-        <p>View rental trends and activity for your fleet.</p>
-        <RouterLink to="/analytics/rentals" class="action-btn">Rental Analytics</RouterLink>
       </div>
       
       <div class="card" v-if="auth.isCitizen">
@@ -91,11 +78,11 @@ const auth = useAuthStore()
           <div class="icon-box">🚍</div>
           <div class="header-text">
             <h2>Public Transit</h2>
-            <p>Real-time bus tracking and metro status across the city network.</p>
+            <p>Real-time bus tracking and metro status across the city.</p>
           </div>
         </header>
         <div class="card-footer">
-          <RouterLink to="/public-transport" class="action-btn" style="background: #3b82f6;">View Transit Schedules</RouterLink>
+          <RouterLink to="/public-transport" class="action-btn" style="background: #3b82f6;">View Schedules</RouterLink>
         </div>
       </div>
 
@@ -104,7 +91,7 @@ const auth = useAuthStore()
           <div class="icon-box">⚙️</div>
           <div class="header-text">
             <h2>Account Settings</h2>
-            <p>Control your personal info, and payment methods.</p>
+            <p>Control your personal info and payment methods.</p>
           </div>
         </header>
         <div class="card-footer">
@@ -166,7 +153,8 @@ h1 { margin: 0; font-size: 2.5rem; font-weight: 900; letter-spacing: -0.02em; }
 .role-badge.system_admin { background: #fdf4ff; color: #a855f7; }
 
 .dash-content { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 2rem; margin-bottom: 5rem; align-items: start; }
-.dash-content.provider-layout { grid-template-columns: 1fr 380px; }
+.dash-content.provider-layout { grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); }
+.provider-main-card { grid-column: 1 / -1; }
 
 .card { 
   background: white; 

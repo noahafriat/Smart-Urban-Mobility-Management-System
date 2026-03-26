@@ -55,7 +55,7 @@ const router = createRouter({
       path: '/mobility-map',
       name: 'mobility-map',
       component: () => import('../views/MobilityMapView.vue'),
-      meta: { requiresAuth: true, citizenOnly: true },
+      meta: { requiresAuth: true },
     },
     {
       // Parking Spaces (Citizens)

@@ -24,7 +24,8 @@ public class UserController {
                     body.get("email"),
                     body.get("password"),
                     body.getOrDefault("role", "CITIZEN"),
-                    body.get("phone")));
+                    body.get("phone"),
+                    body.get("providerType")));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }

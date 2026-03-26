@@ -52,21 +52,19 @@ public class UserRepository {
     // Demo accounts
 
     private void seed() {
-        User alice = new User("Alice Martin",   "alice@summs.ca", "password123", UserRole.CITIZEN);
-        alice.setPreferredCity("Montreal");
-        alice.setPreferredMobilityType("All");
+        User alice = new User("Test Account",   "test@summs.ca", "password123", UserRole.CITIZEN);
         alice.setPaymentInfo("VISA-4242");
         save(alice);
 
         User admin = new User("City Admin",     "admin@summs.ca", "admin123",    UserRole.CITY_ADMIN);
         save(admin);
 
-        User carProvider = new User("car-provider-id", "CommuneAuto (Cars)", "cars@summs.ca", "cars123", UserRole.MOBILITY_PROVIDER);
-        carProvider.setPreferredMobilityType("CAR");
+        User carProvider = new User("car-provider-id", "Car Provider", "cars@summs.ca", "cars123", UserRole.MOBILITY_PROVIDER);
+        carProvider.setProviderType("CAR");
         save(carProvider);
 
-        User scooterProvider = new User("scooter-provider-id", "BIXI (Scooters)", "scooters@summs.ca", "scooters123", UserRole.MOBILITY_PROVIDER);
-        scooterProvider.setPreferredMobilityType("SCOOTER");
+        User scooterProvider = new User("scooter-provider-id", "Scooter Provider", "scooters@summs.ca", "scooters123", UserRole.MOBILITY_PROVIDER);
+        scooterProvider.setProviderType("SCOOTER");
         save(scooterProvider);
 
         User sys   = new User("System Admin",   "sys@summs.ca",   "sys123",      UserRole.SYSTEM_ADMIN);
