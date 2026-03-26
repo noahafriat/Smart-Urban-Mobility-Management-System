@@ -3,7 +3,7 @@
  * Transit Usage Analytics
  * Visible to: City Admin, System Admin
  */
-import { onMounted, computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useAnalyticsStore } from '../stores/analytics'
 
 const store = useAnalyticsStore()
@@ -13,10 +13,43 @@ const fleetTotal = computed(() => {
   return store.transitData.fleetAvailable + store.transitData.fleetInUse + store.transitData.fleetMaintenance
 })
 
-function barWidth(value: number, total: number): string {
-  if (total === 0) return '0%'
-  return Math.round((value / total) * 100) + '%'
+function barPct(value: number, max: number): number {
+  if (!max || !Number.isFinite(max)) return 0
+  return Math.min(100, (value / max) * 100)
 }
+
+const tripsByTypeRows = computed(() => {
+  const m = store.transitData?.tripsByType ?? {}
+  return Object.entries(m)
+    .map(([type, count]) => ({ type, count }))
+    .sort((a, b) => b.count - a.count)
+})
+
+const maxTripsByType = computed(() =>
+  tripsByTypeRows.value.reduce((m, row) => Math.max(m, row.count), 0),
+)
+
+const tripsByCityRows = computed(() => {
+  const m = store.transitData?.tripsByCity ?? {}
+  return Object.entries(m)
+    .map(([city, count]) => ({ city, count }))
+    .sort((a, b) => b.count - a.count)
+})
+
+const maxTripsByCity = computed(() =>
+  tripsByCityRows.value.reduce((m, row) => Math.max(m, row.count), 0),
+)
+
+const revenueByCityRows = computed(() => {
+  const m = store.transitData?.revenueByCity ?? {}
+  return Object.entries(m)
+    .map(([city, revenue]) => ({ city, revenue }))
+    .sort((a, b) => b.revenue - a.revenue)
+})
+
+const maxRevenueByCity = computed(() =>
+  revenueByCityRows.value.reduce((m, row) => Math.max(m, row.revenue), 0),
+)
 
 onMounted(() => {
   store.fetchTransit()
@@ -28,14 +61,9 @@ onMounted(() => {
   <div class="analytics-shell">
     <header class="page-header">
       <div class="header-main">
-        <span class="view-tag">City Oversight</span>
-        <h1>Transit & Platform Intelligence</h1>
-        <p>A panoramic view of Montréal's mobility health and platform operational status.</p>
-      </div>
-      <div class="header-actions">
-        <button class="btn-refresh" @click="store.fetchTransit()" :disabled="store.loading">
-          {{ store.loading ? 'Syncing...' : '↻ Sync Transit Analytics' }}
-        </button>
+        <span class="view-tag">City Mobility</span>
+        <h1>Transit Analytics</h1>
+        <p>A cleaner snapshot of ridership, fleet status, revenue, and gateway health.</p>
       </div>
     </header>
 
@@ -67,107 +95,108 @@ onMounted(() => {
         </div>
       </section>
 
-      <div class="main-grid">
-        <!-- ── Left Column: Operations ── -->
-        <div class="ops-column">
-          
-          <!-- Fleet Distribution -->
-          <section class="panel-card-clean">
-            <div class="panel-header">
-              <h3>Fleet Distribution</h3>
-              <p>Real-time vehicle status across the network.</p>
-            </div>
-            <div class="fleet-health-meter">
-               <div class="multi-bar-smooth">
-                <div class="bar-seg g" :style="{ width: barWidth(store.transitData.fleetAvailable, fleetTotal) }" title="Ready"></div>
-                <div class="bar-seg b" :style="{ width: barWidth(store.transitData.fleetInUse, fleetTotal) }" title="In Use"></div>
-                <div class="bar-seg o" :style="{ width: barWidth(store.transitData.fleetMaintenance, fleetTotal) }" title="Maint."></div>
-              </div>
-              <div class="health-legend">
-                <span><i class="dot g"></i> Ready: {{ store.transitData.fleetAvailable }}</span>
-                <span><i class="dot b"></i> Active: {{ store.transitData.fleetInUse }}</span>
-                <span><i class="dot o"></i> Support: {{ store.transitData.fleetMaintenance }}</span>
-              </div>
-            </div>
-          </section>
-
-          <!-- Usage Breakdown -->
-          <div class="two-col-grid">
-            <section class="panel-card-clean">
-              <h3>Popularity</h3>
-              <div class="stat-list">
-                <div v-for="(count, type) in store.transitData.tripsByType" :key="type" class="clean-row">
-                  <span class="name">{{ type }}</span>
-                  <strong class="qty">{{ count }}</strong>
-                </div>
-              </div>
-            </section>
-
-            <section class="panel-card-clean">
-              <h3>Top Cities</h3>
-              <div class="stat-list">
-                <div v-for="(count, city) in store.transitData.tripsByCity" :key="city" class="clean-row">
-                  <span class="name">{{ city }}</span>
-                  <strong class="qty">{{ count }}</strong>
-                </div>
-              </div>
-            </section>
+      <div class="charts-grid">
+        <section class="panel-card-clean panel-span-2">
+          <div class="panel-header">
+            <h3>Fleet status</h3>
+            <p>Current split of available, in-use, and maintenance vehicles.</p>
           </div>
-        </div>
-
-        <!-- ── Right Column: External Health & Finance ── -->
-        <div class="side-column">
-          
-          <!-- BIXI Gateway -->
-          <section class="panel-card-clean">
-            <div class="panel-header">
-              <h3>BIXI Montréal</h3>
-              <p>External API Status: <span class="green-text">{{ store.gatewayData?.status ?? 'Unknown' }}</span></p>
+          <div class="fleet-health-meter">
+            <div class="multi-bar-smooth">
+              <div class="bar-seg g" :style="{ width: barPct(store.transitData.fleetAvailable, fleetTotal) + '%' }" title="Available"></div>
+              <div class="bar-seg b" :style="{ width: barPct(store.transitData.fleetInUse, fleetTotal) + '%' }" title="In Use"></div>
+              <div class="bar-seg o" :style="{ width: barPct(store.transitData.fleetMaintenance, fleetTotal) + '%' }" title="Maintenance"></div>
             </div>
-            <div v-if="store.gatewayLoading" class="mini-loader">Requesting...</div>
-            <div v-else-if="store.gatewayData" class="brief-list">
-              <div class="brief-item">
-                <span class="l">Total Stations</span>
-                <strong class="v">{{ store.gatewayData.totalStations }}</strong>
-              </div>
-              <div class="brief-item">
-                <span class="l">Bikes Available</span>
-                <strong class="v green-text">{{ store.gatewayData.bikesAvailable }}</strong>
-              </div>
-              <div class="brief-item">
-                <span class="l">Latency</span>
-                <strong class="v">{{ store.gatewayData.responseMs }}ms</strong>
-              </div>
+            <div class="health-legend">
+              <span><i class="dot g"></i> Available: {{ store.transitData.fleetAvailable }}</span>
+              <span><i class="dot b"></i> In Use: {{ store.transitData.fleetInUse }}</span>
+              <span><i class="dot o"></i> Maintenance: {{ store.transitData.fleetMaintenance }}</span>
             </div>
-            <button class="btn-full" @click="store.fetchGateway()">Refresh BIXI</button>
-          </section>
+          </div>
+        </section>
 
-          <!-- Revenue Breakdown -->
-          <section class="panel-card-clean">
-             <h3>Revenue by City</h3>
-             <div class="stat-list">
-               <div v-for="(rev, city) in store.transitData.revenueByCity" :key="city" class="clean-row">
-                 <span class="name">{{ city }}</span>
-                 <strong class="qty">${{ rev.toLocaleString() }}</strong>
-               </div>
-             </div>
-          </section>
-
-          <section class="panel-card-clean highlight">
-            <h3>System Health</h3>
-            <div class="brief-list">
-              <div class="brief-item">
-                <span class="l">Avg Trip Time</span>
-                <strong class="v">{{ store.transitData.avgTripDurationMinutes }}m</strong>
+        <section class="panel-card-clean">
+          <div class="panel-header">
+            <h3>Trips by type</h3>
+          </div>
+          <div v-if="tripsByTypeRows.length === 0" class="empty-state">No trip type breakdown.</div>
+          <div v-else class="bar-chart">
+            <div v-for="row in tripsByTypeRows" :key="row.type" class="bar-row">
+              <span class="bar-label" :title="row.type">{{ row.type }}</span>
+              <div class="bar-track">
+                <div class="bar-fill bar-type" :style="{ width: barPct(row.count, maxTripsByType) + '%' }" />
               </div>
-              <div class="brief-item">
-                <span class="l">Historical Volume</span>
-                <strong class="v">{{ store.transitData.totalTrips }}</strong>
-              </div>
+              <span class="bar-value">{{ row.count }}</span>
             </div>
-          </section>
+          </div>
+        </section>
 
-        </div>
+        <section class="panel-card-clean">
+          <div class="panel-header">
+            <h3>Trips by city</h3>
+          </div>
+          <div v-if="tripsByCityRows.length === 0" class="empty-state">No city trip breakdown.</div>
+          <div v-else class="bar-chart">
+            <div v-for="row in tripsByCityRows" :key="row.city" class="bar-row">
+              <span class="bar-label" :title="row.city">{{ row.city }}</span>
+              <div class="bar-track">
+                <div class="bar-fill bar-city" :style="{ width: barPct(row.count, maxTripsByCity) + '%' }" />
+              </div>
+              <span class="bar-value">{{ row.count }}</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel-card-clean">
+          <div class="panel-header">
+            <h3>Revenue by city</h3>
+          </div>
+          <div v-if="revenueByCityRows.length === 0" class="empty-state">No city revenue breakdown.</div>
+          <div v-else class="bar-chart">
+            <div v-for="row in revenueByCityRows" :key="row.city" class="bar-row">
+              <span class="bar-label" :title="row.city">{{ row.city }}</span>
+              <div class="bar-track">
+                <div class="bar-fill bar-revenue" :style="{ width: barPct(row.revenue, maxRevenueByCity) + '%' }" />
+              </div>
+              <span class="bar-value">${{ row.revenue.toLocaleString(undefined, { maximumFractionDigits: 0 }) }}</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel-card-clean">
+          <div class="panel-header">
+            <h3>BIXI gateway</h3>
+            <p>Live external feed health and responsiveness.</p>
+          </div>
+          <div v-if="store.gatewayLoading" class="mini-loader">Requesting gateway...</div>
+          <div v-else-if="store.gatewayData" class="brief-list">
+            <div class="brief-item">
+              <span class="l">Status</span>
+              <strong
+                class="v"
+                :class="{
+                  'green-text': store.gatewayData.status === 'UP',
+                  'orange-text': store.gatewayData.status === 'DEGRADED',
+                  'red-text': store.gatewayData.status === 'DOWN',
+                }"
+              >
+                {{ store.gatewayData.status }}
+              </strong>
+            </div>
+            <div class="brief-item">
+              <span class="l">Total stations</span>
+              <strong class="v">{{ store.gatewayData.totalStations ?? '-' }}</strong>
+            </div>
+            <div class="brief-item">
+              <span class="l">Bikes available</span>
+              <strong class="v">{{ store.gatewayData.bikesAvailable ?? '-' }}</strong>
+            </div>
+            <div class="brief-item">
+              <span class="l">Latency</span>
+              <strong class="v">{{ store.gatewayData.responseMs }}ms</strong>
+            </div>
+          </div>
+        </section>
       </div>
     </main>
   </div>
@@ -182,24 +211,22 @@ onMounted(() => {
   color: #334155;
 }
 
-.page-header { margin-bottom: 3rem; display: flex; justify-content: space-between; align-items: top; }
+.page-header { margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: flex-start; }
 .header-main h1 { font-size: 2rem; font-weight: 800; color: #0f172a; margin: 0 0 0.5rem; letter-spacing: -0.02em; }
 .header-main p { color: #64748b; font-size: 1rem; margin: 0; }
 .view-tag { font-size: 0.7rem; font-weight: 700; color: #3b82f6; text-transform: uppercase; margin-bottom: 0.5rem; display: block; }
 
-.btn-refresh { padding: 0.6rem 1.25rem; font-size: 0.9rem; font-weight: 600; border: 1px solid #e2e8f0; border-radius: 8px; background: white; cursor: pointer; transition: 0.2s; }
-.btn-refresh:hover { background: #f8fafc; }
-
 /* ── KPIs ── */
-.kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 3rem; }
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.25rem; margin-bottom: 1.5rem; }
 .kpi-card-simple { padding: 1.5rem; border: 1px solid #e2e8f0; border-radius: 12px; display: flex; flex-direction: column; background: #fff; }
 .kpi-card-simple .label { font-size: 0.8rem; font-weight: 600; color: #64748b; margin-bottom: 0.5rem; }
-.kpi-card-simple .value { font-size: 2.25rem; font-weight: 800; color: #0f172a; line-height: 1; margin-bottom: 0.5rem; }
+.kpi-card-simple .value { font-size: 1.95rem; font-weight: 800; color: #0f172a; line-height: 1; margin-bottom: 0.5rem; }
 .kpi-card-simple .subtext { font-size: 0.8rem; color: #94a3b8; }
 
 /* ── Layout ── */
-.main-grid { display: grid; grid-template-columns: 1fr 340px; gap: 2rem; }
-.panel-card-clean { padding: 1.5rem; border: 1px solid #f1f5f9; border-radius: 12px; margin-bottom: 1.5rem; background: #fff; }
+.charts-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.25rem; }
+.panel-span-2 { grid-column: 1 / -1; }
+.panel-card-clean { padding: 1.5rem; border: 1px solid #f1f5f9; border-radius: 12px; background: #fff; }
 .panel-card-clean h3 { font-size: 1.1rem; font-weight: 700; color: #0f172a; margin: 0 0 1.25rem; }
 .panel-card-clean p { font-size: 0.9rem; color: #64748b; margin: -1rem 0 1.5rem; }
 
@@ -216,12 +243,16 @@ onMounted(() => {
 .dot.b { background: #3b82f6; }
 .dot.o { background: #f59e0b; }
 
-/* ── Stat Lists ── */
-.two-col-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
-.clean-row { display: flex; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid #f8fafc; font-size: 0.9rem; }
-.clean-row:last-child { border-bottom: none; }
-.clean-row .name { color: #475569; font-weight: 500; }
-.clean-row .qty { font-weight: 700; color: #0f172a; }
+/* ── Bar Charts ── */
+.bar-chart { display: flex; flex-direction: column; gap: 0.65rem; }
+.bar-row { display: grid; grid-template-columns: minmax(0, 120px) 1fr auto; gap: 0.65rem; align-items: center; font-size: 0.85rem; }
+.bar-label { color: #475569; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-track { height: 10px; background: #f1f5f9; border-radius: 999px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 999px; transition: width 0.35s ease; min-width: 2px; }
+.bar-type { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+.bar-city { background: linear-gradient(90deg, #8b5cf6, #a78bfa); }
+.bar-revenue { background: linear-gradient(90deg, #10b981, #34d399); }
+.bar-value { font-weight: 700; color: #0f172a; font-variant-numeric: tabular-nums; min-width: 3.5rem; text-align: right; }
 
 /* ── Sidebar ── */
 .brief-list { display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem; }
@@ -229,20 +260,24 @@ onMounted(() => {
 .brief-item .l { color: #64748b; }
 .brief-item .v { font-weight: 700; color: #0f172a; }
 .green-text { color: #10b981; }
-
-.btn-full { width: 100%; padding: 0.6rem; background: #0f172a; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
-.btn-full:hover { background: #1e293b; }
-
-.panel-card-clean.highlight { background: #f8fafc; border-color: #e2e8f0; }
+.orange-text { color: #f59e0b; }
+.red-text { color: #ef4444; }
 
 .mini-loader { font-size: 0.8rem; color: #64748b; padding: 1rem 0; }
+.empty-state { text-align: center; padding: 2rem; color: #94a3b8; font-style: italic; }
 
 .state-msg { text-align: center; padding: 5rem; color: #64748b; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 .pulse { animation: pulse 2s infinite; }
 
 @media (max-width: 1024px) {
-  .main-grid { grid-template-columns: 1fr; }
+  .charts-grid { grid-template-columns: 1fr; }
+  .panel-span-2 { grid-column: 1; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 640px) {
   .kpi-grid { grid-template-columns: 1fr; }
+  .bar-row { grid-template-columns: minmax(0, 90px) 1fr auto; }
 }
 </style>
