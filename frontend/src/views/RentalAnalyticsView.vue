@@ -3,28 +3,34 @@
  * Rental & Market Analytics
  * Visible to: City Admin, System Admin, Service Providers
  */
-import { onMounted } from 'vue'
+import { onMounted, watch } from 'vue'
 import { useAnalyticsStore } from '../stores/analytics'
+import { useAuthStore } from '../stores/auth'
 
 const store = useAnalyticsStore()
+const auth = useAuthStore()
 
-function zoneCapacity(count: number, rateStr: string): number {
-  if (!rateStr) return count
-  const rate = parseInt(rateStr.replace('%', ''))
-  if (rate === 0) return count || 100 // Fallback
-  return Math.round(count / (rate / 100))
-}
 
 function formatZoneName(raw: string): string {
-  // raw is "Montréal / Plateau (Scooter)"
-  // we want "Plateau (Scooter)"
   return raw.split(' / ').pop() || raw
 }
 
+function loadData() {
+  if (!auth.user) return
+  const pid = auth.isProvider ? auth.user.id : undefined
+  store.fetchRentals(pid)
+  store.fetchParking(pid)
+}
+
 onMounted(() => {
-  store.fetchRentals()
-  store.fetchParking() // Also fetch parking for zone density
+  if (auth.user) {
+    loadData()
+  }
 })
+
+watch(() => auth.user, (u) => {
+  if (u) loadData()
+}, { immediate: true })
 </script>
 
 <template>
@@ -32,15 +38,18 @@ onMounted(() => {
     <header class="page-header">
       <div class="header-main">
         <div class="scope-header">
-          <span class="view-tag">Market Intelligence</span>
-          <span class="scope-pill provider">Multi-Provider View</span>
+          <span class="view-tag">{{ auth.isProvider ? 'Provider Operations' : 'Market Intelligence' }}</span>
+          <span class="scope-pill provider" :class="{ 'global': !auth.isProvider }">
+            {{ auth.isProvider ? 'Your specialized fleet data' : 'Multi-Provider View' }}
+          </span>
         </div>
         <h1>Rental Operations & Revenue</h1>
-        <p>A consolidated view of historical rental volume, financial performance, and market distribution.</p>
+        <p v-if="auth.isProvider">Historical performance and operational density for your registered vehicles.</p>
+        <p v-else>A consolidated view of historical rental volume, financial performance, and market distribution.</p>
       </div>
       <div class="header-actions">
-        <button class="btn-refresh" @click="store.fetchRentals()" :disabled="store.loading">
-          {{ store.loading ? 'Syncing...' : '↻ Refresh Financials' }}
+        <button class="btn-refresh" @click="() => { const p = auth.isProvider ? auth.user?.id : undefined; store.fetchRentals(p); store.fetchParking(p); }" :disabled="store.loading">
+          {{ store.loading ? 'Syncing...' : '↻ Refresh Data' }}
         </button>
       </div>
     </header>
@@ -66,9 +75,9 @@ onMounted(() => {
             <span class="subtext">Verified financial value</span>
           </div>
           <div class="kpi-card-simple">
-            <span class="label">Utilization Index</span>
-            <strong class="value">{{ ((store.rentalData.activeRentals / (store.rentalData.totalRentals || 1)) * 100).toFixed(1) }}%</strong>
-            <span class="subtext">Active fleet pressure</span>
+            <span class="label">Avg. Revenue per Trip</span>
+            <strong class="value">${{ (store.rentalData.totalRevenue / (store.rentalData.completedRentals || 1)).toFixed(2) }}</strong>
+            <span class="subtext">Per completed session</span>
           </div>
         </div>
       </section>
@@ -106,7 +115,7 @@ onMounted(() => {
               <div v-for="(count, zone) in store.parkingData.parkedPerZone" :key="zone" class="clean-row">
                 <span class="name">{{ formatZoneName(zone) }}</span>
                 <strong class="qty">
-                  {{ count }} / {{ zoneCapacity(count, store.parkingData.occupancyRate[zone]!) }} available
+                  {{ count }} / {{ store.parkingData.totalPerZone[zone] }} available
                 </strong>
               </div>
             </div>
@@ -165,6 +174,7 @@ onMounted(() => {
 .scope-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
 .scope-pill { font-size: 0.65rem; font-weight: 800; padding: 0.2rem 0.5rem; border: 1px solid #e2e8f0; border-radius: 4px; color: #64748b; }
 .scope-pill.provider { color: #10b981; border-color: #bbf7d0; background: #f0fdf4; }
+.scope-pill.global { color: #3b82f6; border-color: #bfdbfe; background: #eff6ff; }
 
 .btn-refresh { padding: 0.6rem 1.25rem; font-size: 0.9rem; font-weight: 600; border: 1px solid #e2e8f0; border-radius: 8px; background: white; cursor: pointer; transition: 0.2s; }
 .btn-refresh:hover { background: #f8fafc; }

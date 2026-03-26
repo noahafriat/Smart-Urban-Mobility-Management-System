@@ -50,6 +50,7 @@ export interface ParkingAnalytics {
   totalAvailableInZones: number
   overallUtilizationRate: string
   parkedPerZone: Record<string, number>
+  totalPerZone: Record<string, number>
   occupancyRate: Record<string, string>
   maintenancePerCity: Record<string, number>
 
@@ -99,11 +100,12 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     }
   }
 
-  async function fetchParking() {
+  async function fetchParking(providerId?: string) {
     loading.value = true
     error.value = null
     try {
-      const res = await api.get('/analytics/parking')
+      const params = providerId ? { providerId } : {}
+      const res = await api.get('/analytics/parking', { params })
       parkingData.value = res.data as ParkingAnalytics
     } catch (e: any) {
       error.value = e.response?.data?.error || 'Failed to load parking analytics'

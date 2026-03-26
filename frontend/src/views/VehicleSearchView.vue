@@ -17,8 +17,6 @@ const route = useRoute()
 onMounted(() => {
   if (route.query.city) {
     selectedCity.value = route.query.city as string
-  } else if (auth.user?.preferredCity) {
-    selectedCity.value = auth.user.preferredCity
   }
   handleSearch()
 
@@ -514,43 +512,52 @@ function getEnergyLabel(vehicle: Vehicle) {
   align-items: center;
 }
 
+.iv-map-btn, .iv-reserve {
+  padding: 0.65rem 1.25rem;
+  border-radius: 12px;
+  font-weight: 850;
+  font-size: 0.95rem;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  height: 42px; /* Fixed height for perfect uniformity */
+}
+
 .iv-map-btn {
-  padding: 0.6rem 1rem;
   background: white;
   color: #3b82f6;
-  border: 1px solid #3b82f6;
-  border-radius: 8px;
-  font-weight: 700;
+  border: 2px solid #3b82f6;
   text-decoration: none;
-  cursor: pointer;
-  transition: all 0.2s;
 }
 
 .iv-map-btn:hover {
-  background: #eff6ff;
+  background: #f0f7ff;
+  transform: translateY(-1px);
 }
 
 .iv-reserve {
-  padding: 0.6rem 1.5rem;
   background: #3b82f6;
   color: white;
-  border: none;
-  border-radius: 8px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.2s;
+  border: 2px solid #3b82f6;
 }
 
 .iv-reserve:hover {
   background: #2563eb;
+  border-color: #2563eb;
+  transform: translateY(-1px);
 }
 
 .car-reserve {
   background: #6366f1;
+  border-color: #6366f1;
 }
 
 .car-reserve:hover {
   background: #4f46e5;
+  border-color: #4f46e5;
 }
 
 .slide-enter-active,
