@@ -28,6 +28,17 @@ const expiryYear = ref('')
 const cvv = ref('')
 const savePaymentMethod = ref(true)
 
+// Restricted Input Helpers
+const currentYear = new Date().getFullYear() % 100
+const years = Array.from({ length: 10 }, (_, i) => (currentYear + i).toString().padStart(2, '0'))
+const months = Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, '0'))
+
+function onlyNumbers(e: KeyboardEvent) {
+  if (!/[0-9]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Tab') {
+    e.preventDefault()
+  }
+}
+
 const savedMethods = computed(() => authStore.user?.paymentMethods || [])
 const hasSavedMethods = computed(() => savedMethods.value.length > 0)
 
@@ -186,23 +197,40 @@ async function startReservation() {
             </div>
             <div class="form-row">
               <label>Full Name</label>
-              <input v-model="cardholderName" />
+              <input v-model="cardholderName" placeholder="e.g. John Smith" />
             </div>
             <div class="form-row">
               <label>Account Number</label>
-              <input v-model="cardNumber" placeholder="0000 0000 0000 0000" />
+              <input 
+                v-model="cardNumber" 
+                placeholder="0000 0000 0000 0000" 
+                maxlength="19"
+                @keypress="onlyNumbers" 
+              />
             </div>
             <div class="form-grid">
                <div class="form-row">
-                  <label>Expiry</label>
+                  <label>Expiry Date</label>
                   <div class="dual-input">
-                    <input v-model="expiryMonth" placeholder="MM" maxlength="2" />
-                    <input v-model="expiryYear" placeholder="YYYY" maxlength="4" />
+                    <select v-model="expiryMonth" class="small-select">
+                      <option value="" disabled selected>MM</option>
+                      <option v-for="m in months" :key="m" :value="m">{{ m }}</option>
+                    </select>
+                    <select v-model="expiryYear" class="small-select">
+                      <option value="" disabled selected>YY</option>
+                      <option v-for="y in years" :key="y" :value="y">{{ y }}</option>
+                    </select>
                   </div>
                </div>
                <div class="form-row">
                   <label>CVV</label>
-                  <input v-model="cvv" type="password" placeholder="***" maxlength="3" />
+                  <input 
+                    v-model="cvv" 
+                    type="password" 
+                    placeholder="***" 
+                    maxlength="4" 
+                    @keypress="onlyNumbers"
+                  />
                </div>
             </div>
             <label class="save-check">
@@ -331,10 +359,27 @@ async function startReservation() {
 
 .new-card-form { display: flex; flex-direction: column; gap: 1.25rem; padding: 1.75rem; background: #f8fafc; border-radius: 24px; border: 1px solid #f1f5f9; margin-bottom: 2.5rem; }
 .form-row label { display: block; font-size: 0.75rem; font-weight: 800; color: #94a3b8; margin-bottom: 0.5rem; }
-input, select { width: 100%; border: 1px solid #e2e8f0; padding: 0.85rem 1.1rem; border-radius: 14px; font-size: 1rem; color: #334155; font-weight: 500; }
+input {
+  padding: 0.85rem 1.1rem;
+}
+
+select {
+  padding: 0 0.8rem;
+  height: 50px;
+  line-height: 50px;
+}
+
+input, select { 
+  width: 100%; 
+  border: 1px solid #e2e8f0; 
+  border-radius: 14px; 
+  font-size: 1rem; 
+  color: #0f172a; 
+  font-weight: 500; 
+}
 input:focus, select:focus { border-color: #3b82f6; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.08); outline: none; }
 
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+.form-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 1.25rem; }
 .dual-input { display: flex; gap: 0.5rem; }
 .save-check { display: flex; align-items: center; gap: 0.75rem; font-size: 0.85rem; font-weight: 700; color: #64748b; cursor: pointer; }
 

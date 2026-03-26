@@ -179,13 +179,24 @@ label {
   letter-spacing: 0.05em;
 }
 
+input {
+  padding: 0.85rem 1.1rem;
+}
+
+select {
+  padding: 0 0.8rem;
+  height: 50px;
+  line-height: 50px;
+}
+
 input, select {
+  width: 100%;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 0.8rem 1rem;
-  font-size: 0.95rem;
-  color: #1e293b;
+  border-radius: 14px;
+  font-size: 1rem;
+  color: #0f172a;
+  font-weight: 500;
   transition: all 0.2s;
   outline: none;
 }
@@ -219,7 +230,7 @@ input:focus, select:focus {
 }
 
 .cvv-group {
-  width: 100px;
+  width: 80px;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
