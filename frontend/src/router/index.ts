@@ -65,6 +65,13 @@ const router = createRouter({
       meta: { requiresAuth: true, citizenOnly: true },
     },
     {
+      // Citizen settings for account/payment management
+      path: '/settings',
+      name: 'settings',
+      component: () => import('../views/SettingsView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       // Public Transportation Hub (Citizens)
       path: '/public-transport',
       name: 'public-transport',

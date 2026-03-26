@@ -1,4 +1,8 @@
 <script setup lang="ts">
+/**
+ * Citizen Rental Management & Live Receipt View.
+ * Displays both active trips and historical bookings.
+ */
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
@@ -29,14 +33,17 @@ function handlePay(rentalId: string) {
 </script>
 
 <template>
-  <div class="rentals-view">
+  <div class="rentals-view fade-in">
     <header class="page-header">
-      <h1>My Rentals</h1>
-      <p>Manage your active trips and payment history.</p>
+      <div class="header-content">
+        <span class="view-tag">Travel Monitoring</span>
+        <h1>My Rentals</h1>
+        <p>Review active travel sessions and settle outstanding trip invoices.</p>
+      </div>
     </header>
 
     <div v-if="rentalStore.loading && rentalStore.rentals.length === 0" class="state-msg pulse">
-      Loading your trips...
+       Retrieving your city movement history...
     </div>
 
     <div v-else-if="rentalStore.error" class="state-msg error">
@@ -44,59 +51,91 @@ function handlePay(rentalId: string) {
     </div>
 
     <div v-else-if="rentalStore.rentals.length === 0" class="empty-state">
-      <div class="empty-icon">🚲</div>
+      <div class="empty-icon">📂</div>
       <h2>No rental history found.</h2>
-      <p>Go to the Vehicle Search page to start your first trip!</p>
+      <p>Your journey with SUMMS starts here. Explore our live transit fleet and book your first trip.</p>
       <RouterLink to="/vehicles" class="action-btn">Find a Vehicle</RouterLink>
     </div>
 
     <div v-else class="rental-list">
-      <div v-for="rental in rentalStore.rentals" :key="rental.id" class="rental-card">
+      <div v-for="rental in rentalStore.rentals" :key="rental.id" class="rental-card-modern">
         
-        <!-- Status Badge -->
-        <span class="status-badge" :class="rental.status.toLowerCase()">
-          Current Status: {{ rental.status }}
-        </span>
-
-        <div class="r-details">
-          <div class="r-vehicle">
-            <h3>{{ rental.vehicle.type === 'CAR' ? rental.vehicle.model : 'Scooter' }}</h3>
-            <p><strong>Code:</strong> {{ rental.vehicle.vehicleCode }}</p>
-            <p><strong>Location:</strong> {{ rental.vehicle.locationCity }} / {{ rental.vehicle.locationZone }}</p>
-            <p v-if="rental.vehicle.licensePlate"><strong>License:</strong> {{ rental.vehicle.licensePlate }}</p>
+        <header class="card-top">
+          <div class="v-meta">
+            <span class="v-type">{{ rental.vehicle.type }}</span>
+            <h3>{{ rental.vehicle.type === 'CAR' ? rental.vehicle.model : 'Eco-Scooter Fleet' }}</h3>
+            <span class="v-code">#{{ rental.vehicle.vehicleCode }}</span>
           </div>
+          <span class="status-pill" :class="rental.status.toLowerCase()">
+            {{ rental.status }}
+          </span>
+        </header>
 
-          <div class="r-timeline">
-            <p><strong>Started:</strong> {{ formatTime(rental.startTime) }}</p>
-            <p><strong>Ended:</strong> {{ formatTime(rental.endTime) }}</p>
-            
-            <div class="cost-box" v-if="rental.status !== 'ACTIVE'">
-              <strong>Total Invoice:</strong> <span class="cost">${{ rental.totalCost?.toFixed(2) }}</span>
+        <main class="card-body">
+          <div class="trip-info">
+            <div class="loc-grid">
+              <div class="loc-item">
+                <span class="label">Initial Hub</span>
+                <span class="val">{{ rental.vehicle.locationCity }} / {{ rental.vehicle.locationZone }}</span>
+              </div>
+              <div class="loc-item" v-if="rental.vehicle.licensePlate">
+                <span class="label">Fleet ID</span>
+                <span class="val">{{ rental.vehicle.licensePlate }}</span>
+              </div>
+            </div>
+
+            <div class="timeline-row">
+              <div class="time-block">
+                <span class="label">Started</span>
+                <span class="val">{{ formatTime(rental.startTime) }}</span>
+              </div>
+              <div class="time-divider"></div>
+              <div class="time-block">
+                <span class="label">Finished</span>
+                <span class="val">{{ formatTime(rental.endTime) }}</span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div class="r-actions">
-          <button 
-            v-if="rental.status === 'ACTIVE'" 
-            @click="handleReturn(rental.id)"
-            :disabled="rentalStore.loading"
-            class="action-btn return">
-            End Trip & Return
-          </button>
-
-          <button 
-            v-else-if="rental.status === 'COMPLETED'" 
-            @click="handlePay(rental.id)"
-            :disabled="rentalStore.loading"
-            class="action-btn pay">
-            Pay Invoice Now
-          </button>
-          
-          <div class="receipt" v-else-if="rental.status === 'PAID'">
-            ✅ Paid in full using {{ auth.user?.paymentInfo || "card" }}
+          <!-- Financial Context -->
+          <div class="finance-block">
+            <div class="invoice-row">
+              <span class="label">Associated Method</span>
+              <span class="val card-label">💳 {{ rental.reservationPaymentMethod }}</span>
+            </div>
+            
+            <div class="invoice-row total" v-if="rental.status !== 'ACTIVE'">
+              <span class="label">Total Invoice</span>
+              <span class="total-val">${{ rental.totalCost?.toFixed(2) }}</span>
+            </div>
           </div>
-        </div>
+        </main>
+
+        <footer class="card-footer">
+          <!-- Active Actions -->
+          <div v-if="rental.status === 'ACTIVE'" class="actions-group">
+            <button @click="handleReturn(rental.id)" class="btn-primary return">End Trip</button>
+          </div>
+
+          <!-- Pending Payment -->
+          <div v-else-if="rental.status === 'COMPLETED'" class="payment-setup">
+            <div class="payment-instruction">
+               <p>Your trip is complete. Charge will be applied to <strong>{{ rental.reservationPaymentMethod }}</strong>.</p>
+            </div>
+            <button @click="handlePay(rental.id)" class="btn-primary pay">Authorize Settlement Charge</button>
+          </div>
+          
+          <!-- Reconciliation -->
+          <div v-else-if="rental.status === 'PAID'" class="paid-confirmation">
+             <div class="receipt-label">
+                <span class="check">✔</span> 
+                Invoiced & Settled
+             </div>
+             <div class="receipt-info">
+               Processed via <strong>{{ rental.finalPaymentMethod || rental.reservationPaymentMethod }}</strong>
+             </div>
+          </div>
+        </footer>
 
       </div>
     </div>
@@ -105,168 +144,76 @@ function handlePay(rentalId: string) {
 
 <style scoped>
 .rentals-view {
-  padding: 2rem;
+  padding: 3rem clamp(1rem, 5vw, 4rem);
   max-width: 900px;
   margin: 0 auto;
+  font-family: 'Inter', system-ui, sans-serif;
 }
 
-.page-header {
-  margin-bottom: 2rem;
-}
+.page-header { margin-bottom: 3.5rem; }
+.view-tag { color: #3b82f6; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; display: block; margin-bottom: 0.5rem; }
+.page-header h1 { font-size: 2.5rem; font-weight: 800; color: #0f172a; margin: 0; letter-spacing: -0.02em; }
+.page-header p { color: #64748b; font-size: 1.1rem; margin-top: 0.5rem; }
 
-.page-header h1 {
-  font-size: 2.25rem;
-  color: #1a202c;
-  margin: 0 0 0.5rem;
-}
+/* ── List Layout ── */
+.rental-list { display: flex; flex-direction: column; gap: 2rem; }
+.rental-card-modern { background: white; border: 1px solid #f1f5f9; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 25px -10px rgba(0,0,0,0.05); }
 
-.page-header p {
-  color: #718096;
-  font-size: 1.1rem;
-  margin: 0;
-}
+/* ── Card Header ── */
+.card-top { padding: 1.5rem 2rem; border-bottom: 1px solid #f8fafc; display: flex; justify-content: space-between; align-items: center; }
+.v-meta h3 { margin: 0; font-size: 1.25rem; font-weight: 800; color: #0f172a; }
+.v-type { font-size: 0.65rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; }
+.v-code { font-size: 0.85rem; color: #64748b; font-family: 'JetBrains Mono', monospace; }
+.status-pill { padding: 0.35rem 0.75rem; border-radius: 100px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
+.status-pill.active { background: #eff6ff; color: #3b82f6; }
+.status-pill.completed { background: #fef2f2; color: #ef4444; }
+.status-pill.paid { background: #f0fdf4; color: #10b981; }
 
-.state-msg {
-  text-align: center;
-  padding: 4rem;
-  color: #718096;
-  font-size: 1.25rem;
-}
+/* ── Card Body ── */
+.card-body { padding: 2rem; display: grid; grid-template-columns: 1fr 280px; gap: 2rem; }
+.label { font-size: 0.75rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; display: block; margin-bottom: 0.25rem; }
+.val { font-size: 1rem; font-weight: 600; color: #334155; }
 
-.pulse {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
+.loc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+.timeline-row { display: flex; align-items: center; gap: 1rem; }
+.time-divider { flex: 1; height: 1px; background: #e2e8f0; position: relative; }
+.time-divider::after { content: '→'; position: absolute; right: 0; top: -10px; color: #cbd5e1; font-size: 0.8rem; }
 
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: .5; }
-}
+.finance-block { background: #f8fafc; padding: 1.5rem; border-radius: 16px; border: 1px solid #f1f5f9; display: flex; flex-direction: column; gap: 1rem; }
+.invoice-row { display: flex; justify-content: space-between; align-items: center; color: #334155; }
+.invoice-row.total { border-top: 1px dashed #e2e8f0; padding-top: 1rem; margin-top: 0.5rem; }
+.total-val { font-size: 1.5rem; font-weight: 800; color: #0f172a; }
+.card-label { font-family: monospace; font-size: 0.95rem; font-weight: 700; }
 
-.empty-state {
-  text-align: center;
-  background: white;
-  padding: 4rem 2rem;
-  border-radius: 16px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.02);
-}
+/* ── Card Footer ── */
+.card-footer { padding: 1.5rem 2rem; background: #fcfdfe; border-top: 1px solid #f1f5f9; }
 
-.empty-icon {
-  font-size: 4rem;
-  margin-bottom: 1rem;
-}
+.payment-instruction { margin-bottom: 1.25rem; }
+.payment-instruction p { margin: 0; color: #64748b; font-size: 0.9rem; line-height: 1.5; }
+.payment-instruction strong { color: #0f172a; }
 
-.empty-state h2 {
-  color: #2d3748;
-  margin-top: 0;
-}
+.btn-primary { padding: 1rem 1.75rem; border-radius: 14px; font-weight: 750; cursor: pointer; border: none; transition: 0.2s; background: #0f172a; color: white; width: 100%; font-size: 1rem; }
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -5px rgba(15, 23, 42, 0.25); }
+.btn-primary.return { background: #f97316; }
+.btn-primary.return:hover { background: #ea580c; box-shadow: 0 10px 20px -5px rgba(249, 115, 22, 0.25); }
 
-.empty-state p {
-  color: #718096;
-  margin-bottom: 2rem;
-}
+.paid-confirmation { display: flex; justify-content: space-between; align-items: center; }
+.receipt-label { font-size: 1.1rem; font-weight: 800; color: #10b981; display: flex; align-items: center; gap: 0.5rem; }
+.receipt-info { font-size: 0.9rem; color: #64748b; }
+.receipt-info strong { color: #0f172a; }
 
-.action-btn {
-  display: inline-block;
-  padding: 0.85rem 1.5rem;
-  background: #3182ce;
-  color: white;
-  text-decoration: none;
-  border-radius: 8px;
-  font-weight: 600;
-  transition: 0.2s;
-  border: none;
-  cursor: pointer;
-  font-size: 1rem;
-}
+.state-msg { text-align: center; padding: 5rem; color: #64748b; font-size: 1.1rem; }
+.empty-state { text-align: center; padding: 5rem; background: white; border-radius: 20px; border: 1px dashed #cbd5e1; }
+.empty-icon { font-size: 4rem; margin-bottom: 1.5rem; opacity: 0.3; }
 
-.action-btn:hover:not(:disabled) {
-  background: #2b6cb0;
-}
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+.pulse { animation: pulse 2s infinite; }
 
-.action-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
+.fade-in { animation: fadeIn 0.8s ease-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
 
-.action-btn.return { background: #ed8936; }
-.action-btn.return:hover:not(:disabled) { background: #dd6b20; }
-
-.action-btn.pay { background: #38a169; width: 100%; }
-.action-btn.pay:hover:not(:disabled) { background: #2f855a; }
-
-.rental-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.rental-card {
-  background: white;
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.03);
-  position: relative;
-}
-
-.status-badge {
-  position: absolute;
-  top: 1.5rem;
-  right: 1.5rem;
-  padding: 0.4rem 0.8rem;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-}
-
-.status-badge.active { background: #feebc8; color: #c05621; }
-.status-badge.completed { background: #e2e8f0; color: #4a5568; }
-.status-badge.paid { background: #c6f6d5; color: #22543d; }
-
-.r-details {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 2rem;
-  margin-bottom: 1.5rem;
-}
-
-.r-vehicle h3 {
-  margin: 0 0 0.5rem;
-  font-size: 1.25rem;
-  color: #1a202c;
-}
-
-.r-vehicle p, .r-timeline p {
-  margin: 0 0 0.5rem;
-  color: #4a5568;
-}
-
-.cost-box {
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px dashed #e2e8f0;
-}
-
-.cost-box .cost {
-  font-size: 1.25rem;
-  font-weight: 800;
-  color: #2d3748;
-}
-
-.r-actions {
-  border-top: 1px solid #edf2f7;
-  padding-top: 1.5rem;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.receipt {
-  font-weight: 600;
-  color: #38a169;
-  background: #f0fff4;
-  padding: 0.75rem 1.25rem;
-  border-radius: 8px;
-  width: 100%;
-  text-align: center;
+@media (max-width: 768px) {
+  .card-body { grid-template-columns: 1fr; }
+  .loc-grid { grid-template-columns: 1fr; }
 }
 </style>

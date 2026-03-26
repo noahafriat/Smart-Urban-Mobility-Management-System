@@ -16,12 +16,22 @@ public class Rental {
     private LocalDateTime startTime;
     private LocalDateTime endTime;
     private double totalCost;
+    private String reservationPaymentMethod;
+    private String reservationPaymentStatus;
+    private LocalDateTime reservationPaymentProcessedAt;
+    private double reservationPaymentAmount;
+    private String finalPaymentMethod;
+    private LocalDateTime finalPaymentProcessedAt;
 
-    public Rental(String userId, Vehicle vehicle) {
+    public Rental(String userId, Vehicle vehicle, String reservationPaymentMethod, double reservationPaymentAmount) {
         this.id = UUID.randomUUID().toString();
         this.userId = userId;
         this.vehicle = vehicle;
         this.status = RentalStatus.ACTIVE;
         this.startTime = LocalDateTime.now();
+        this.reservationPaymentMethod = reservationPaymentMethod;
+        this.reservationPaymentStatus = "SUCCEEDED";
+        this.reservationPaymentProcessedAt = LocalDateTime.now();
+        this.reservationPaymentAmount = reservationPaymentAmount;
     }
 }

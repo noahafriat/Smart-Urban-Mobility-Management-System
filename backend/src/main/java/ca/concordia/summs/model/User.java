@@ -21,8 +21,8 @@ public class User {
     private String preferredCity;
     private String preferredMobilityType;
 
-    // Simulated payment — no real gateway for Phase 3
-    private String paymentInfo;
+    // Simulated payment — supports multiple fake cards
+    private java.util.List<String> paymentMethods = new java.util.ArrayList<>();
 
     public User(String name, String email, String password, UserRole role) {
         this(UUID.randomUUID().toString(), name, email, password, role);
@@ -34,5 +34,19 @@ public class User {
         this.email    = email;
         this.password = password;
         this.role     = role;
+    }
+
+    // Helper for legacy code that only knows about one card
+    public String getPaymentInfo() {
+        return paymentMethods.isEmpty() ? null : paymentMethods.get(0);
+    }
+
+    public void setPaymentInfo(String method) {
+        if (method != null && !method.isBlank()) {
+           if (!paymentMethods.contains(method)) {
+               paymentMethods.clear(); // for set, we replace or just keep one
+               paymentMethods.add(method);
+           }
+        }
     }
 }
