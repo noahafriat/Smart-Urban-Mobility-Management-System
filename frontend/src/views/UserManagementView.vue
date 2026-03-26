@@ -3,7 +3,7 @@
  * Manage Account Roles
  * Exclusive to System Admin. Allows assigning or modifying roles for any user.
  */
-import { onMounted, ref, reactive } from 'vue'
+import { onMounted, ref, reactive, computed } from 'vue'
 import { api } from '../api'
 import { useAuthStore } from '../stores/auth'
 
@@ -31,7 +31,45 @@ const roleLabels: Record<string, string> = {
   SYSTEM_ADMIN: 'System Admin',
 }
 
+const search = ref('')
 const pendingRole = reactive<Record<string, string>>({})
+
+const filteredUsers = computed(() => {
+  if (!search.value) return users.value
+  const q = search.value.toLowerCase()
+  return users.value.filter(u => 
+    u.name.toLowerCase().includes(q) || 
+    u.email.toLowerCase().includes(q)
+  )
+})
+
+function getAvatarColor(role: string) {
+  switch(role) {
+    case 'SYSTEM_ADMIN': return '#fee2e2'
+    case 'CITY_ADMIN': return '#f5f3ff'
+    case 'MOBILITY_PROVIDER': return '#ecfdf5'
+    default: return '#eff6ff'
+  }
+}
+
+function getAvatarTextColor(role: string) {
+  switch(role) {
+    case 'SYSTEM_ADMIN': return '#b91c1c'
+    case 'CITY_ADMIN': return '#5b21b6'
+    case 'MOBILITY_PROVIDER': return '#065f46'
+    default: return '#1e40af'
+  }
+}
+
+const counts = computed(() => {
+  const result = { CITIZEN: 0, MOBILITY_PROVIDER: 0, CITY_ADMIN: 0, SYSTEM_ADMIN: 0 }
+  users.value.forEach(u => {
+    if (result[u.role as keyof typeof result] !== undefined) {
+      result[u.role as keyof typeof result]++
+    }
+  })
+  return result
+})
 
 onMounted(fetchUsers)
 
@@ -95,9 +133,9 @@ async function deleteUser(user: UserRow) {
   <div class="analytics-shell">
     <header class="page-header">
       <div class="header-main">
-        <span class="view-tag">System Governance</span>
-        <h1>User Registry & Access Control</h1>
-        <p>Manage authenticated identities and assign administrative privileges across the platform.</p>
+        <span class="view-tag">Admin</span>
+        <h1>User Management</h1>
+        <p>Manage user accounts and permissions across the platform.</p>
       </div>
       <div class="header-actions">
         <button class="btn-refresh" :disabled="loading" @click="fetchUsers">
@@ -115,12 +153,18 @@ async function deleteUser(user: UserRow) {
     <main v-else class="registry-container panel-card">
       <div class="registry-header">
         <div class="registry-stats">
-          <span class="stat"><strong>{{ users.length }}</strong> Total Accounts</span>
+          <span class="stat"><strong>{{ users.length }}</strong> Total</span>
           <span class="divider">|</span>
-          <span class="stat"><strong>{{ users.filter(u => u.role === 'SYSTEM_ADMIN').length }}</strong> Administrators</span>
+          <span class="stat"><strong>{{ counts.CITIZEN }}</strong> Citizens</span>
+          <span class="divider">|</span>
+          <span class="stat"><strong>{{ counts.MOBILITY_PROVIDER }}</strong> Providers</span>
+          <span class="divider">|</span>
+          <span class="stat"><strong>{{ counts.CITY_ADMIN }}</strong> City Admins</span>
+          <span class="divider">|</span>
+          <span class="stat"><strong>{{ counts.SYSTEM_ADMIN }}</strong> System Admins</span>
         </div>
         <div class="registry-search">
-           <input type="text" placeholder="Search accounts by name or email..." class="search-input" disabled />
+           <input type="text" v-model="search" placeholder="Search by name or email..." class="search-input" />
         </div>
       </div>
 
@@ -130,25 +174,33 @@ async function deleteUser(user: UserRow) {
             <tr>
               <th>Account Holder</th>
               <th>Identity</th>
-              <th>Current Access Level</th>
-              <th>Action Panel</th>
+              <th>Access Level & Operations</th>
+              <th class="text-right">Action Panel</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="user in users" :key="user.id" :class="{ 'highlight-row': successId === user.id }">
+            <tr v-for="user in filteredUsers" :key="user.id" :class="{ 'highlight-row': successId === user.id }">
               <td class="user-info-cell">
-                <div class="user-avatar">{{ user.name.charAt(0) }}</div>
+                <div class="user-avatar" :style="{ backgroundColor: getAvatarColor(user.role), color: getAvatarTextColor(user.role) }">
+                  {{ user.name.charAt(0) }}
+                </div>
                 <div class="user-details">
                   <span class="user-name">{{ user.name }}</span>
-                  <span class="user-id">ID: {{ user.id.slice(0, 8) }}...</span>
+                  <span class="user-id">#{{ user.id.slice(0, 8) }}</span>
                 </div>
               </td>
-              <td class="email-cell">{{ user.email }}</td>
+              <td class="email-cell">
+                 <div class="id-box">
+                    <span class="iv-email">{{ user.email }}</span>
+                 </div>
+              </td>
               <td>
                 <div class="role-management">
-                   <span class="role-pill" :class="user.role.toLowerCase().replace('_', '-')">
-                    {{ roleLabels[user.role] }}
-                  </span>
+                   <div class="role-scope">
+                      <span class="role-pill" :class="user.role.toLowerCase().replace('_', '-')">
+                        {{ roleLabels[user.role] }}
+                      </span>
+                   </div>
                   <div class="inline-actions">
                     <select v-model="pendingRole[user.id]" class="registry-select">
                       <option v-for="role in ROLES" :key="role" :value="role">
@@ -157,20 +209,21 @@ async function deleteUser(user: UserRow) {
                     </select>
                      <button
                         class="btn-save"
+                        :class="{ changed: pendingRole[user.id] !== user.role }"
                         :disabled="loading || pendingRole[user.id] === user.role"
                         @click="applyRole(user)">
-                        {{ successId === user.id ? 'Saved' : 'Apply' }}
+                        {{ successId === user.id ? '✓ Saved' : 'Apply' }}
                       </button>
                   </div>
                 </div>
               </td>
-              <td class="actions-cell">
+              <td class="actions-cell text-right">
                 <button
-                  class="btn-delete"
+                  class="btn-delete-icon"
+                  title="Remove User"
                   :disabled="loading || user.id === auth.user?.id"
                   @click="deleteUser(user)">
-                  <span class="icon">🗑️</span>
-                  Remove
+                  🗑️
                 </button>
               </td>
             </tr>
@@ -278,86 +331,98 @@ async function deleteUser(user: UserRow) {
   font-size: 0.9rem;
   background: white;
 }
-
-/* ── Table Styling ── */
-.table-wrapper { overflow-x: auto; }
+.table-wrapper { overflow-x: auto; padding-bottom: 2rem; }
 .registry-table { width: 100%; border-collapse: collapse; text-align: left; }
 
 .registry-table th {
-  padding: 1rem 2rem;
-  font-size: 0.75rem;
+  padding: 1.25rem 2rem;
+  font-size: 0.7rem;
   font-weight: 800;
   text-transform: uppercase;
   color: #94a3b8;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
   border-bottom: 1px solid #f1f5f9;
 }
 
 .registry-table td {
-  padding: 1.25rem 2rem;
+  padding: 1.5rem 2rem;
   border-bottom: 1px solid #f8fafc;
   vertical-align: middle;
 }
 
-.registry-table tr:last-child td { border-bottom: none; }
-.registry-table tr.highlight-row td { background: #f0fdf4; transition: background 0.5s; }
+.registry-table tr:hover td { background: #fafbfc; }
+.registry-table tr.highlight-row td { background: #f0fdf4 !important; transition: background 0.5s; }
+
+.text-right { text-align: right; }
 
 /* ── Specific Cells ── */
 .user-info-cell { display: flex; align-items: center; gap: 1.25rem; }
 .user-avatar {
   width: 44px; height: 44px;
-  background: #f1f5f9; border-radius: 12px;
+  border-radius: 100%;
   display: flex; align-items: center; justify-content: center;
-  font-weight: 900; color: #3b82f6; font-size: 1.2rem;
+  font-weight: 900; font-size: 1.15rem;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05);
 }
 
-.user-details { display: flex; flex-direction: column; }
-.user-name { font-weight: 800; color: #1e293b; font-size: 1.1rem; line-height: 1.2; }
-.user-id { font-size: 0.75rem; color: #94a3b8; font-weight: 600; font-family: monospace; }
+.user-details { display: flex; flex-direction: column; gap: 0.2rem; }
+.user-name { font-weight: 850; color: #1e293b; font-size: 1rem; line-height: 1.2; }
+.user-id { font-size: 0.65rem; color: #94a3b8; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
 
-.role-management { display: flex; flex-direction: column; gap: 0.75rem; }
+.email-cell { color: #64748b; font-weight: 500; font-size: 0.95rem; }
+.iv-email { font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; }
+
+.role-management { display: flex; align-items: center; gap: 2rem; }
+.role-scope { min-width: 140px; }
 
 .inline-actions {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  background: #f1f5f9;
+  padding: 0.35rem 0.5rem 0.35rem 0.75rem;
+  border-radius: 12px;
 }
 
 .registry-select {
-  padding: 0.4rem 0.6rem;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-  font-size: 0.85rem;
-  background: white;
-  color: #475569;
+  border: none;
+  background: transparent;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #334155;
+  outline: none;
+  cursor: pointer;
+  padding-right: 1.5rem;
 }
 
 .btn-save {
-  padding: 0.4rem 0.8rem;
-  background: #3b82f6;
-  color: white; border: none;
-  border-radius: 8px; font-weight: 700;
-  font-size: 0.8rem; cursor: pointer;
+  padding: 0.45rem 1rem;
+  background: white;
+  color: #94a3b8; border: 1px solid #e2e8f0;
+  border-radius: 8px; font-weight: 800;
+  font-size: 0.75rem; cursor: pointer;
+  transition: 0.2s;
 }
-.btn-save:disabled { background: #e2e8f0; color: #94a3b8; cursor: not-allowed; }
+.btn-save.changed { background: #3b82f6; color: white; border-color: #3b82f6; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.2); }
+.btn-save:disabled:not(.changed) { cursor: not-allowed; opacity: 0.7; }
 
-.btn-delete {
-  display: flex; align-items: center; gap: 0.5rem;
-  background: white; border: 1px solid #fee2e2;
-  color: #991b1b; padding: 0.5rem 0.75rem;
-  border-radius: 8px; font-weight: 700;
-  font-size: 0.8rem; cursor: pointer;
-  transition: all 0.2s;
+.btn-delete-icon {
+  width: 38px; height: 38px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #fef2f2; border: 1px solid #fee2e2;
+  color: #ef4444; border-radius: 10px;
+  cursor: pointer; transition: 0.2s;
+  font-size: 1.1rem;
 }
-.btn-delete:hover:not(:disabled) { background: #fee2e2; border-color: #fecaca; }
-.btn-delete:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); }
+.btn-delete-icon:hover:not(:disabled) { background: #ef4444; color: white; border-color: #ef4444; transform: scale(1.1); }
+.btn-delete-icon:disabled { opacity: 0.3; cursor: not-allowed; }
 
 /* ── Role Badges ── */
 .role-pill {
-  width: fit-content;
   font-size: 0.65rem; font-weight: 900;
-  padding: 0.2rem 0.6rem; border-radius: 999px;
-  text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 0.35rem 0.75rem; border-radius: 999px;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  display: inline-block;
 }
 .role-pill.citizen { background: #eff6ff; color: #1e40af; }
 .role-pill.mobility-provider { background: #ecfdf5; color: #065f46; }

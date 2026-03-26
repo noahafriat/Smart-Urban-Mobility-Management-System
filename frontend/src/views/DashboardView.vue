@@ -1,7 +1,6 @@
 <script setup lang="ts">
 
 import ProviderFleetManager from '../components/ProviderFleetManager.vue'
-import SettingsCard from '../components/SettingsCard.vue'
 import { useAuthStore } from '../stores/auth'
 
 const auth = useAuthStore()
@@ -21,28 +20,56 @@ const auth = useAuthStore()
     <main class="dash-content" :class="{ 'provider-layout': auth.isProvider }">
       <!-- ── Citizen Interaction Hub ── -->
       <div class="card" v-if="auth.isCitizen">
-        <h2>Your Commute</h2>
-        <p>You can search for vehicles, view transit, and reserve parking.</p>
-        <RouterLink to="/vehicles" class="action-btn mb">Search Vehicles</RouterLink>
-        <RouterLink to="/rentals" class="action-btn secondary">My Rentals</RouterLink>
+        <header class="card-header">
+          <div class="icon-box">🏠</div>
+          <div class="header-text">
+            <h2>Your Commute</h2>
+            <p>Search for vehicles, view transit, and reserve parking.</p>
+          </div>
+        </header>
+        <div class="card-footer">
+          <RouterLink to="/vehicles" class="action-btn mb">Search Vehicles</RouterLink>
+          <RouterLink to="/rentals" class="action-btn secondary">My Rentals</RouterLink>
+        </div>
       </div>
 
       <div class="card" v-if="auth.isCitizen">
-        <h2>🚲 BIXI Live Availability</h2>
-        <p>See real-time bike counts at every active BIXI station across Montréal.</p>
-        <RouterLink to="/bixi" class="action-btn" style="background: #16a34a;">View BIXI Stations</RouterLink>
+        <header class="card-header">
+          <div class="icon-box">🚲</div>
+          <div class="header-text">
+            <h2>BIXI Availability</h2>
+            <p>See real-time bike counts at every active station across Montréal.</p>
+          </div>
+        </header>
+        <div class="card-footer">
+          <RouterLink to="/bixi" class="action-btn" style="background: #16a34a;">View BIXI Stations</RouterLink>
+        </div>
       </div>
 
       <div class="card" v-if="auth.isCitizen">
-        <h2>🗺 Mobility Map</h2>
-        <p>View car rentals, scooter docks, BIXI bikes, and parking garages on one live map.</p>
-        <RouterLink to="/mobility-map" class="action-btn" style="background: #0f766e;">Open Mobility Map</RouterLink>
+        <header class="card-header">
+          <div class="icon-box">🗺️</div>
+          <div class="header-text">
+            <h2>Mobility Map</h2>
+            <p>View car rentals, scooter docks, BIXI, and garages on one live map.</p>
+          </div>
+        </header>
+        <div class="card-footer">
+          <RouterLink to="/mobility-map" class="action-btn" style="background: #0f766e;">Open Mobility Map</RouterLink>
+        </div>
       </div>
 
       <div class="card" v-if="auth.isCitizen">
-        <h2>🅿️ Parking Spaces</h2>
-        <p>Find available parking spaces across the city and view live capacity data.</p>
-        <RouterLink to="/parking-spaces" class="action-btn" style="background: #2b6cb0;">View Parking Spaces</RouterLink>
+        <header class="card-header">
+          <div class="icon-box">🅿️</div>
+          <div class="header-text">
+            <h2>Parking Spaces</h2>
+            <p>Find available parking spaces across the city and view live capacity.</p>
+          </div>
+        </header>
+        <div class="card-footer">
+          <RouterLink to="/parking-spaces" class="action-btn" style="background: #2b6cb0;">View Parking Spaces</RouterLink>
+        </div>
       </div>
 
       <!-- ── Provider Command Center ── -->
@@ -59,23 +86,46 @@ const auth = useAuthStore()
         <RouterLink to="/analytics/rentals" class="action-btn">Rental Analytics</RouterLink>
       </div>
       
-      <!-- Citizen-only Settings & Wallet Summary -->
-      <SettingsCard v-if="auth.isCitizen" />
+      <div class="card" v-if="auth.isCitizen">
+        <header class="card-header">
+          <div class="icon-box">🚍</div>
+          <div class="header-text">
+            <h2>Public Transit</h2>
+            <p>Real-time bus tracking and metro status across the city network.</p>
+          </div>
+        </header>
+        <div class="card-footer">
+          <RouterLink to="/public-transport" class="action-btn" style="background: #3b82f6;">View Transit Schedules</RouterLink>
+        </div>
+      </div>
+
+      <div class="card" v-if="auth.isCitizen">
+        <header class="card-header">
+          <div class="icon-box">⚙️</div>
+          <div class="header-text">
+            <h2>Account Settings</h2>
+            <p>Control your personal info, and payment methods.</p>
+          </div>
+        </header>
+        <div class="card-footer">
+          <RouterLink to="/settings" class="action-btn">Manage Account</RouterLink>
+        </div>
+      </div>
     </main>
 
     <!-- ── Administrative Console ── -->
     <div v-if="auth.isAdmin || auth.isSysAdmin" class="admin-container">
-       <header class="hub-header">
-        <h2>Administrative Console</h2>
-        <p>Operational oversight for urban mobility and platform governance.</p>
+      <header class="hub-header">
+        <h2>Admin Console</h2>
+        <p>Manage user roles and platform analytics.</p>
       </header>
 
       <div class="admin-grid">
         <!-- City Analytics -->
         <div v-if="auth.isAdmin" class="card admin-feature">
           <div class="af-icon analytics">📊</div>
-          <h3>Central Intelligence</h3>
-          <p>Analyze mobility density, transit flow, and infrastructure stress across all sectors.</p>
+          <h3>City Analytics</h3>
+          <p>Track transit usage, rental data, and parking stats.</p>
           <div class="af-actions">
             <RouterLink to="/analytics/transit" class="btn outline">Transit Data</RouterLink>
             <RouterLink to="/analytics/rentals" class="btn outline">Rental Data</RouterLink>
@@ -83,11 +133,10 @@ const auth = useAuthStore()
           </div>
         </div>
 
-        <!-- System Settings -->
         <div v-if="auth.isSysAdmin" class="card admin-feature dangerous">
           <div class="af-icon system">⚙️</div>
-          <h3>System Governance</h3>
-          <p>Identity management, role audits, and enterprise-level platform configuration.</p>
+          <h3>User Control</h3>
+          <p>Manage user accounts and set permissions.</p>
           <div class="af-actions">
             <RouterLink to="/admin/users" class="btn solid danger">User Management</RouterLink>
           </div>
@@ -119,13 +168,73 @@ h1 { margin: 0; font-size: 2.5rem; font-weight: 900; letter-spacing: -0.02em; }
 .dash-content { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 2rem; margin-bottom: 5rem; align-items: start; }
 .dash-content.provider-layout { grid-template-columns: 1fr 380px; }
 
-.card { background: white; border: 1px solid #f1f5f9; border-radius: 28px; padding: 2.5rem; box-shadow: 0 10px 40px -10px rgba(0,0,0,0.04); transition: 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+.card { 
+  background: white; 
+  border: 1px solid #f1f5f9; 
+  border-radius: 20px; 
+  padding: 1.5rem; 
+  box-shadow: 0 10px 40px -10px rgba(0,0,0,0.04); 
+  transition: 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
 .card:hover { transform: translateY(-4px); box-shadow: 0 20px 50px -15px rgba(0,0,0,0.08); }
 
-h2 { font-size: 1.4rem; font-weight: 850; margin-bottom: 0.75rem; color: #1e293b; }
-p { color: #64748b; font-size: 1rem; line-height: 1.6; font-weight: 500; }
+.card-header {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1.25rem;
+}
 
-.action-btn { display: block; width: 100%; border: none; padding: 1rem; border-radius: 16px; font-weight: 800; text-decoration: none; text-align: center; font-size: 1rem; cursor: pointer; transition: 0.2s; background: #0f172a; color: white; margin-top: 2rem; }
+.icon-box {
+  font-size: 1.5rem;
+  background: #f8fafc;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  flex-shrink: 0;
+}
+
+.header-text h2 { 
+  font-size: 1.35rem; 
+  font-weight: 850; 
+  margin: 0 0 0.5rem 0; 
+  color: #1e293b; 
+}
+.header-text p { 
+  color: #64748b; 
+  font-size: 0.95rem; 
+  line-height: 1.5; 
+  font-weight: 500;
+  margin: 0;
+}
+
+.card-footer {
+  margin-top: auto;
+  padding-top: 1rem;
+}
+
+.action-btn { 
+  display: block; 
+  width: 100%; 
+  border: none; 
+  padding: 1rem; 
+  border-radius: 16px; 
+  font-weight: 800; 
+  text-decoration: none; 
+  text-align: center; 
+  font-size: 1rem; 
+  cursor: pointer; 
+  transition: 0.2s; 
+  background: #0f172a; 
+  color: white; 
+}
 .action-btn:hover { background: #1e293b; transform: translateY(-2px); }
 .action-btn.secondary { background: #f1f5f9; color: #475569; margin-top: 0.75rem; }
 .action-btn.mb { margin-bottom: 0.75rem; }

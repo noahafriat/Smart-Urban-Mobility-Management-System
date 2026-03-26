@@ -12,7 +12,6 @@ const profile = ref({
   name: '',
   phone: '',
   email: '',
-  preferredMobilityType: ''
 })
 
 // Full Card Form State
@@ -33,7 +32,6 @@ onMounted(() => {
       name: auth.user.name || '',
       phone: auth.user.phone || '',
       email: auth.user.email || '',
-      preferredMobilityType: auth.user.preferredMobilityType || ''
     }
   }
 })
@@ -130,15 +128,6 @@ function showSuccess(msg: string) {
           <div class="form-group">
             <label>Mobile Number</label>
             <input v-model="profile.phone" placeholder="+1..." />
-          </div>
-          <div class="form-group">
-            <label>Primary Transit Mode</label>
-            <select v-model="profile.preferredMobilityType">
-              <option value="">None</option>
-              <option value="CAR">Car-Sharing (Vehicles)</option>
-              <option value="SCOOTER">Micro-Mobility (Scooters)</option>
-              <option value="BIKE">Public Cyclist (BIXI)</option>
-            </select>
           </div>
           <button type="submit" :disabled="auth.loading" class="btn-save">
             {{ auth.loading ? 'Updating...' : 'Commit Profile Changes' }}

@@ -8,8 +8,6 @@ export interface User {
   email: string
   role: 'CITIZEN' | 'MOBILITY_PROVIDER' | 'CITY_ADMIN' | 'SYSTEM_ADMIN'
   phone?: string
-  preferredCity?: string
-  preferredMobilityType?: string
   hasPaymentInfo?: boolean
   paymentInfo?: string
   paymentMethods?: string[]
@@ -30,7 +28,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   // User registration
   async function register(payload: {
-    name: string; email: string; password: string; role: string; phone?: string; preferredMobilityType?: string
+    name: string; email: string; password: string; role: string; phone?: string
   }) {
     loading.value = true
     error.value = null

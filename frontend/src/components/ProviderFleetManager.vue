@@ -40,14 +40,12 @@ type ServiceCity = keyof typeof locationCatalog
 
 const serviceCities = Object.keys(locationCatalog) as ServiceCity[]
 
-const authStore = useAuthStore()
-const preferredType = authStore.user?.preferredMobilityType as VehicleType | undefined
-const defaultType = preferredType || 'SCOOTER'
+const defaultType: VehicleType = 'SCOOTER'
 
 const filters = reactive<Required<ProviderFleetFilters>>({
   city: 'All',
   zone: 'All',
-  type: preferredType || 'All',
+  type: 'All',
   status: 'All',
   includeHidden: true,
 })
@@ -420,7 +418,7 @@ function vehicleHeading(vehicle: Vehicle) {
           <option v-for="zone in filterZoneOptions" :key="zone" :value="zone">{{ zone }}</option>
         </select>
       </label>
-      <label v-if="!preferredType">
+      <label>
         Type
         <select v-model="filters.type" @change="loadFleet">
           <option value="All">All types</option>
@@ -456,7 +454,7 @@ function vehicleHeading(vehicle: Vehicle) {
             <button class="modal-close" type="button" aria-label="Close form" @click="closeForm">x</button>
           </div>
           <form class="fleet-form" @submit.prevent="submitForm">
-            <label v-if="!preferredType">
+            <label>
               Vehicle type
               <select v-model="form.type" :disabled="!!editingVehicleId">
                 <option value="SCOOTER">Scooter</option>
