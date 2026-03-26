@@ -12,6 +12,7 @@ export interface User {
   preferredMobilityType?: string
   hasPaymentInfo?: boolean
   paymentInfo?: string
+  paymentMethods?: string[]
 }
 
 // Pinia store for authenticated user state.
@@ -58,16 +59,15 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function updatePaymentInfo(paymentInfo: string) {
+  async function updateProfile(updates: any) {
     if (!user.value) throw new Error('User not logged in')
-
     loading.value = true
     error.value = null
     try {
-      const res = await api.put(`/users/${user.value.id}/profile`, { paymentInfo })
+      const res = await api.put(`/users/${user.value.id}/profile`, updates)
       user.value = res.data as User
     } catch (e: any) {
-      error.value = e.response?.data?.error ?? 'Failed to update payment method'
+      error.value = e.response?.data?.error ?? 'Failed to update profile'
       throw error.value
     } finally {
       loading.value = false
@@ -83,6 +83,6 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     user, error, loading,
     isLoggedIn, isProvider, isAdmin, isCitizen, isSysAdmin,
-    register, login, logout, updatePaymentInfo,
+    register, login, logout, updateProfile,
   }
 })

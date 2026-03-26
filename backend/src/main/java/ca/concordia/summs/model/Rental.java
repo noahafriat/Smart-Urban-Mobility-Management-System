@@ -20,6 +20,8 @@ public class Rental {
     private String reservationPaymentStatus;
     private LocalDateTime reservationPaymentProcessedAt;
     private double reservationPaymentAmount;
+    private String finalPaymentMethod;
+    private LocalDateTime finalPaymentProcessedAt;
 
     public Rental(String userId, Vehicle vehicle, String reservationPaymentMethod, double reservationPaymentAmount) {
         this.id = UUID.randomUUID().toString();

@@ -1,4 +1,8 @@
 <script setup lang="ts">
+/**
+ * Vehicle Reservation Completion.
+ * Handles final billing authorization and asset locking.
+ */
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
@@ -13,7 +17,10 @@ const vehicleStore = useVehicleStore()
 
 const vehicleId = route.params.id as string
 const reservationError = ref('')
-const selectedPaymentOption = ref<'saved' | 'new'>('saved')
+
+// Payment Selection
+const selectedPaymentMethod = ref('') // Stores the actual card label or 'NEW'
+const cardType = ref('VISA')
 const cardholderName = ref('')
 const cardNumber = ref('')
 const expiryMonth = ref('')
@@ -21,13 +28,15 @@ const expiryYear = ref('')
 const cvv = ref('')
 const savePaymentMethod = ref(true)
 
-const hasSavedPaymentMethod = computed(() => !!authStore.user?.paymentInfo)
-const formattedSavedPaymentMethod = computed(() => authStore.user?.paymentInfo || '')
+const savedMethods = computed(() => authStore.user?.paymentMethods || [])
+const hasSavedMethods = computed(() => savedMethods.value.length > 0)
 
 onMounted(() => {
   vehicleStore.fetchVehicleById(vehicleId)
-  if (!hasSavedPaymentMethod.value) {
-    selectedPaymentOption.value = 'new'
+  if (hasSavedMethods.value) {
+    selectedPaymentMethod.value = savedMethods.value[0]!
+  } else {
+    selectedPaymentMethod.value = 'NEW'
   }
 })
 
@@ -40,463 +49,277 @@ async function startReservation() {
   if (!authStore.user) return
   reservationError.value = ''
 
-  const useSavedPaymentMethod = selectedPaymentOption.value === 'saved' && hasSavedPaymentMethod.value
-  const paymentInfo = useSavedPaymentMethod ? undefined : buildFakeCardPayload()
+  const isNewCard = selectedPaymentMethod.value === 'NEW'
+  let paymentInfo = ''
 
-  if (!useSavedPaymentMethod && !paymentInfo) {
-    reservationError.value = 'Enter a cardholder name, card number, expiry, and CVV before reserving.'
-    return
+  if (isNewCard) {
+    if (!cardholderName.value || !cardNumber.value || !expiryMonth.value || !expiryYear.value || !cvv.value) {
+      reservationError.value = 'Please fill out all credit card details.'
+      return
+    }
+    // Format as TYPE-LAST4 for the simulation label
+    const digits = cardNumber.value.replace(/\D/g, '')
+    const last4 = digits.slice(-4)
+    paymentInfo = `${cardType.value}-${last4}`
+  } else {
+    paymentInfo = selectedPaymentMethod.value
   }
 
   try {
     await rentalStore.reserve(authStore.user.id, vehicleId, {
       paymentInfo,
-      savePaymentMethod: !useSavedPaymentMethod && savePaymentMethod.value,
+      savePaymentMethod: isNewCard && savePaymentMethod.value,
     })
-    if (!useSavedPaymentMethod && savePaymentMethod.value && authStore.user) {
-      authStore.user.paymentInfo = maskCardNumber(cardNumber.value)
-      authStore.user.hasPaymentInfo = true
-    }
+    
+    // Redirect to activity feed
     router.push('/rentals')
-  } catch (error) {
-    reservationError.value = rentalStore.error || 'Failed to reserve. This vehicle might have just been rented by another user.'
+  } catch (error: any) {
+    reservationError.value = error.message || 'Failed to authorize reservation.'
   }
-}
-
-function buildFakeCardPayload() {
-  if (!cardholderName.value.trim()) return ''
-
-  const digits = cardNumber.value.replace(/\D/g, '')
-  const month = expiryMonth.value.trim()
-  const year = expiryYear.value.trim()
-  const securityCode = cvv.value.trim()
-
-  if (digits.length < 4 || !month || !year || securityCode.length < 3) {
-    return ''
-  }
-
-  return `${cardholderName.value.trim()}|${digits}|${month}|${year}|${securityCode}`
-}
-
-function maskCardNumber(rawCardNumber: string) {
-  const digits = rawCardNumber.replace(/\D/g, '')
-  if (digits.length < 4) return 'CARD'
-  return `CARD-${digits.slice(-4)}`
 }
 </script>
 
 <template>
-  <div class="reservation-view">
-    <button class="back-btn" @click="router.back()">← Back to Search</button>
+  <div class="reservation-view fade-in">
+    <button class="back-link" @click="router.back()">← Modify Reservation</button>
 
     <div v-if="vehicleStore.loading" class="state-msg pulse">
-      Loading vehicle details...
+       Establishing secure handshake with fleet node...
     </div>
 
     <div v-else-if="vehicleStore.error" class="state-msg error">
       {{ vehicleStore.error }}
-      <br /><br />
-      <button class="btn" @click="router.push('/vehicles')">Return to Search</button>
+      <button class="btn-retry" @click="router.push('/vehicles')">Return to Search</button>
     </div>
 
-    <div v-else-if="vehicleStore.selectedVehicle" class="vehicle-card">
-      <div class="card-header">
-        <div class="v-icon">
-          {{ vehicleStore.selectedVehicle.type === 'CAR' ? '🚗' : '🛴' }}
-        </div>
-        <div class="v-title">
-          <h1>{{ vehicleStore.selectedVehicle.type === 'CAR' ? vehicleStore.selectedVehicle.model : 'Scooter' }}</h1>
-          <p class="v-code">{{ vehicleStore.selectedVehicle.type === 'CAR' ? 'Car' : 'Scooter' }} · {{ vehicleStore.selectedVehicle.vehicleCode }}</p>
-        </div>
-        <div class="v-energy">
-          {{ getEnergyLabel(vehicleStore.selectedVehicle) }}
-        </div>
-      </div>
-
-      <div class="card-body">
-        <div class="info-group">
-          <span class="label">Location</span>
-          <span class="value">{{ vehicleStore.selectedVehicle.locationCity }} / {{ vehicleStore.selectedVehicle.locationZone }}</span>
-        </div>
-
-        <div v-if="vehicleStore.selectedVehicle.licensePlate" class="info-group">
-          <span class="label">License Plate</span>
-          <span class="value license">{{ vehicleStore.selectedVehicle.licensePlate }}</span>
-        </div>
-
-        <div class="pricing-card">
-          <h3>Pricing Information</h3>
-          <div class="pricing-row">
-            <span>Reservation Charge</span>
-            <strong>${{ vehicleStore.selectedVehicle.basePrice.toFixed(2) }}</strong>
+    <div v-else-if="vehicleStore.selectedVehicle" class="reservation-layout">
+      
+      <!-- ── Left: Summary ── -->
+      <section class="summary-panel">
+        <header class="v-header">
+          <div class="v-icon-box">
+             {{ vehicleStore.selectedVehicle.type === 'CAR' ? '🚗' : '🛴' }}
           </div>
-          <div class="pricing-row">
-            <span>Rate</span>
-            <strong>${{ vehicleStore.selectedVehicle.pricePerMinute.toFixed(2) }} / min</strong>
+          <div class="v-details">
+             <h1>{{ vehicleStore.selectedVehicle.type === 'CAR' ? vehicleStore.selectedVehicle.model : 'Eco-Scooter Fleet' }}</h1>
+             <span class="v-hash">#{{ vehicleStore.selectedVehicle.vehicleCode }}</span>
+          </div>
+        </header>
+
+        <div class="specs-grid">
+          <div class="spec">
+            <span class="label">Primary Hub</span>
+            <span class="val">{{ vehicleStore.selectedVehicle.locationCity }} / {{ vehicleStore.selectedVehicle.locationZone }}</span>
+          </div>
+          <div class="spec">
+            <span class="label">Energy Status</span>
+            <span class="val">{{ getEnergyLabel(vehicleStore.selectedVehicle) }}</span>
+          </div>
+          <div v-if="vehicleStore.selectedVehicle.licensePlate" class="spec">
+            <span class="label">Fleet ID</span>
+            <span class="val plate">{{ vehicleStore.selectedVehicle.licensePlate }}</span>
           </div>
         </div>
 
-        <div class="payment-card">
-          <h3>Payment Method</h3>
+        <div class="pricing-context">
+           <h3>Financial Estimation</h3>
+           <div class="price-row">
+             <span>Reservation Charge</span>
+             <strong>${{ vehicleStore.selectedVehicle.basePrice.toFixed(2) }}</strong>
+           </div>
+           <div class="price-row">
+             <span>Post-Usage Rate</span>
+             <strong>${{ vehicleStore.selectedVehicle.pricePerMinute.toFixed(2) }} / min</strong>
+           </div>
+           <p class="billing-note">The reservation charge and trip duration will be billed as a single unified invoice upon vehicle return.</p>
+        </div>
+      </section>
 
-          <label v-if="hasSavedPaymentMethod" class="payment-option">
-            <input v-model="selectedPaymentOption" type="radio" value="saved" />
-            <span>Use saved payment method: <strong>{{ formattedSavedPaymentMethod }}</strong></span>
-          </label>
+      <!-- ── Right: Checkout ── -->
+      <section class="payment-panel">
+         <h2>Authorize Mobility Session</h2>
+         <p class="p-sub">Select or provision a payment instrument to finalize your booking.</p>
 
-          <label class="payment-option">
-            <input v-model="selectedPaymentOption" type="radio" value="new" />
-            <span>{{ hasSavedPaymentMethod ? 'Use a new credit card' : 'Add a credit card to continue' }}</span>
-          </label>
-
-          <div v-if="selectedPaymentOption === 'new'" class="payment-form">
-            <label>
-              Cardholder Name
-              <input v-model="cardholderName" type="text" placeholder="Alex Morgan" />
-            </label>
-            <label>
-              Card Number
-              <input v-model="cardNumber" type="text" inputmode="numeric" placeholder="4242 4242 4242 4242" />
-            </label>
-            <div class="payment-row">
-              <label>
-                Exp. Month
-                <input v-model="expiryMonth" type="text" inputmode="numeric" placeholder="08" />
-              </label>
-              <label>
-                Exp. Year
-                <input v-model="expiryYear" type="text" inputmode="numeric" placeholder="2028" />
-              </label>
-              <label>
-                CVV
-                <input v-model="cvv" type="password" inputmode="numeric" placeholder="123" />
-              </label>
+         <div class="method-selector">
+            <div 
+              v-for="method in savedMethods" 
+              :key="method" 
+              class="method-option"
+              :class="{ selected: selectedPaymentMethod === method }"
+              @click="selectedPaymentMethod = method"
+            >
+               <input type="radio" :value="method" v-model="selectedPaymentMethod" />
+               <div class="m-info">
+                  <span class="m-type">{{ method.split('-')[0] }}</span>
+                  <span class="m-val">{{ method.split('-')[1] }}</span>
+               </div>
             </div>
-            <label class="save-option">
-              <input v-model="savePaymentMethod" type="checkbox" />
-              <span>Save this credit card to my account</span>
-            </label>
-            <p class="payment-note">Test mode only. Any card ending in <strong>0000</strong> will be declined.</p>
-          </div>
-        </div>
 
-        <div class="actions">
-          <p v-if="reservationError" class="error-banner">{{ reservationError }}</p>
-          <button 
-            class="reserve-btn" 
-            :disabled="rentalStore.loading"
-            @click="startReservation"
-          >
-            {{ rentalStore.loading ? 'Processing Payment...' : 'Pay & Start Reservation' }}
-          </button>
-          <p class="terms">Your reservation is confirmed only after the payment is processed successfully.</p>
-        </div>
-      </div>
+            <div 
+              class="method-option"
+              :class="{ selected: selectedPaymentMethod === 'NEW' }"
+              @click="selectedPaymentMethod = 'NEW'"
+            >
+               <input type="radio" value="NEW" v-model="selectedPaymentMethod" />
+               <div class="m-info">
+                  <span class="m-label">Alternative Instrument</span>
+                  <span class="m-val">Add a new credit card</span>
+               </div>
+            </div>
+         </div>
+
+         <!-- New Card Form -->
+         <div v-if="selectedPaymentMethod === 'NEW'" class="new-card-form">
+            <div class="form-row">
+              <label>Issuer Network</label>
+              <select v-model="cardType" class="modern-select">
+                <option value="VISA">VISA</option>
+                <option value="MASTERCARD">Mastercard</option>
+                <option value="AMEX">Amex</option>
+                <option value="DISCOVER">Discover</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label>Full Holder Name</label>
+              <input v-model="cardholderName" placeholder="Alex Morgan" />
+            </div>
+            <div class="form-row">
+              <label>Account Number</label>
+              <input v-model="cardNumber" placeholder="0000 0000 0000 0000" />
+            </div>
+            <div class="form-grid">
+               <div class="form-row">
+                  <label>Expiry</label>
+                  <div class="dual-input">
+                    <input v-model="expiryMonth" placeholder="MM" maxlength="2" />
+                    <input v-model="expiryYear" placeholder="YY" maxlength="2" />
+                  </div>
+               </div>
+               <div class="form-row">
+                  <label>CVV/CVC</label>
+                  <input v-model="cvv" type="password" placeholder="***" maxlength="3" />
+               </div>
+            </div>
+            <label class="save-check">
+               <input type="checkbox" v-model="savePaymentMethod" />
+               <span>Store this instrument for future city mobility</span>
+            </label>
+         </div>
+
+         <div class="final-actions">
+            <p v-if="reservationError" class="error-box">{{ reservationError }}</p>
+            <button 
+              class="btn-checkout" 
+              @click="startReservation"
+              :disabled="rentalStore.loading"
+            >
+               {{ rentalStore.loading ? 'Authorizing...' : 'Start Trip' }}
+            </button>
+            <p class="terms">By proceeding, you authorize a unified charge upon vehicle return according to city transit terms.</p>
+         </div>
+      </section>
+
     </div>
   </div>
 </template>
 
 <style scoped>
 .reservation-view {
-  padding: 2rem;
-  max-width: 600px;
+  padding: 3rem clamp(1rem, 5vw, 4rem);
+  max-width: 1000px;
   margin: 0 auto;
-}
-
-.back-btn {
-  background: none;
-  border: none;
-  color: #3b82f6;
-  font-weight: 600;
-  font-size: 1rem;
-  cursor: pointer;
-  padding: 0;
-  margin-bottom: 1.5rem;
-}
-
-.back-btn:hover {
-  text-decoration: underline;
-}
-
-.state-msg {
-  text-align: center;
-  padding: 4rem 2rem;
-  color: #64748b;
-  font-size: 1.15rem;
-  background: white;
-  border-radius: 16px;
-  border: 1px solid #e2e8f0;
-}
-
-.state-msg.error {
-  color: #b91c1c;
-  background: #fef2f2;
-  border-color: #fca5a5;
-}
-
-.pulse {
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-.btn {
-  padding: 0.6rem 1.2rem;
-  background: #3b82f6;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.vehicle-card {
-  background: white;
-  border-radius: 20px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
-  border: 1px solid #e2e8f0;
-  overflow: hidden;
-}
-
-.card-header {
-  padding: 2rem;
-  background: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-}
-
-.v-icon {
-  font-size: 3rem;
-  background: white;
-  width: 80px;
-  height: 80px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-}
-
-.v-title {
-  flex: 1;
-}
-
-.v-title h1 {
-  margin: 0 0 0.25rem;
-  font-size: 1.5rem;
+  font-family: 'Inter', system-ui, sans-serif;
   color: #0f172a;
 }
 
-.v-code {
-  margin: 0;
-  color: #64748b;
-  font-family: monospace;
-  font-size: 1.1rem;
+.back-link { background: none; border: none; font-weight: 700; color: #64748b; cursor: pointer; margin-bottom: 2rem; display: block; transition: 0.2s; }
+.back-link:hover { color: #0f172a; text-decoration: underline; }
+
+.reservation-layout { 
+  display: grid; 
+  grid-template-columns: 1fr 1fr; 
+  gap: 3.5rem; 
+  background: white; 
+  border-radius: 36px; 
+  padding: 3.5rem; 
+  box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.08);
+  border: 1px solid #f1f5f9;
 }
 
-.v-energy {
-  background: #dcfce7;
-  color: #166534;
-  padding: 0.5rem 1rem;
-  border-radius: 999px;
-  font-weight: 700;
-  font-size: 0.9rem;
+/* ── Summary Panel ── */
+.v-header { display: flex; align-items: center; gap: 1.5rem; margin-bottom: 3rem; }
+.v-icon-box { font-size: 2.75rem; background: #f8fafc; padding: 1.5rem; border-radius: 22px; border: 1px solid #e2e8f0; }
+.v-details h1 { margin: 0; font-size: 1.6rem; font-weight: 900; }
+.v-hash { color: #94a3b8; font-family: monospace; font-weight: 700; font-size: 1.1rem; }
+
+.specs-grid { display: flex; flex-direction: column; gap: 1.5rem; margin-bottom: 3rem; }
+.label { font-size: 0.75rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 0.4rem; }
+.val { font-size: 1.05rem; font-weight: 700; color: #334155; }
+.val.plate { font-family: 'JetBrains Mono', monospace; background: #f1f5f9; padding: 0.25rem 0.75rem; border-radius: 8px; font-size: 0.95rem; }
+
+.pricing-context { background: #f8fafc; border-radius: 24px; padding: 1.75rem; border: 1px solid #f1f5f9; }
+.pricing-context h3 { font-size: 0.9rem; margin: 0 0 1.25rem; color: #64748b; font-weight: 900; text-transform: uppercase; }
+.price-row { display: flex; justify-content: space-between; margin-bottom: 0.85rem; font-size: 1.15rem; font-weight: 500; }
+.price-row strong { font-weight: 900; color: #0f172a; }
+.billing-note { font-size: 0.8rem; color: #94a3b8; margin: 1.75rem 0 0; line-height: 1.5; font-weight: 500; }
+
+/* ── Checkout Panel ── */
+.payment-panel h2 { font-size: 1.85rem; font-weight: 900; margin: 0; }
+.p-sub { color: #64748b; margin: 0.5rem 0 2.5rem; font-size: 1.05rem; }
+
+.method-selector { display: flex; flex-direction: column; gap: 0.85rem; margin-bottom: 2.5rem; }
+.method-option { 
+  display: flex; 
+  align-items: center; 
+  gap: 1.25rem; 
+  padding: 1.25rem; 
+  border-radius: 20px; 
+  border: 2px solid #f1f5f9; 
+  cursor: pointer; 
+  transition: 0.2s;
+  background: #fdfdfe;
 }
+.method-option:hover { border-color: #cbd5e1; background: white; }
+.method-option.selected { border-color: #3b82f6; background: #eff6ff; }
 
-.card-body {
-  padding: 2rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+.m-type { text-transform: uppercase; font-size: 0.65rem; font-weight: 900; background: white; padding: 0.3rem 0.6rem; border-radius: 8px; border: 1px solid #e2e8f0; display: block; margin-bottom: 0.25rem; width: fit-content; }
+.m-val { font-weight: 800; color: #1e293b; font-family: 'JetBrains Mono', monospace; }
+.m-label { font-size: 0.75rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; display: block; }
+
+.new-card-form { display: flex; flex-direction: column; gap: 1.25rem; padding: 1.75rem; background: #f8fafc; border-radius: 24px; border: 1px solid #f1f5f9; margin-bottom: 2.5rem; }
+.form-row label { display: block; font-size: 0.75rem; font-weight: 800; color: #94a3b8; margin-bottom: 0.5rem; }
+input, select { width: 100%; border: 1px solid #e2e8f0; padding: 0.85rem 1.1rem; border-radius: 14px; font-size: 1rem; color: #334155; font-weight: 500; }
+input:focus, select:focus { border-color: #3b82f6; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.08); outline: none; }
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+.dual-input { display: flex; gap: 0.5rem; }
+.save-check { display: flex; align-items: center; gap: 0.75rem; font-size: 0.85rem; font-weight: 700; color: #64748b; cursor: pointer; }
+
+.btn-checkout { 
+  width: 100%; 
+  padding: 1.35rem; 
+  background: #0f172a; 
+  color: white; 
+  border: none; 
+  border-radius: 20px; 
+  font-weight: 900; 
+  font-size: 1.15rem; 
+  cursor: pointer; 
+  transition: 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
+.btn-checkout:hover:not(:disabled) { transform: translateY(-3px); box-shadow: 0 15px 35px -10px rgba(15, 23, 42, 0.5); }
+.btn-checkout:disabled { opacity: 0.6; cursor: wait; }
 
-.info-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
+.error-box { background: #fef2f2; color: #ef4444; border: 1px solid #fecaca; padding: 1.25rem; border-radius: 16px; font-weight: 800; margin-bottom: 2rem; font-size: 0.95rem; text-align: center; }
+.terms { text-align: center; color: #94a3b8; font-size: 0.75rem; margin-top: 1.25rem; line-height: 1.5; font-weight: 500; }
 
-.label {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #64748b;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
+.state-msg { text-align: center; padding: 6rem; color: #64748b; font-size: 1.2rem; font-weight: 500; }
+.pulse { animation: pulse 2s infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+.fade-in { animation: fadeIn 0.8s ease-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
-.value {
-  font-size: 1.15rem;
-  color: #0f172a;
-  font-weight: 500;
-}
-
-.value.license {
-  font-family: monospace;
-  background: #f1f5f9;
-  padding: 0.4rem 0.8rem;
-  border-radius: 6px;
-  display: inline-block;
-  width: max-content;
-}
-
-.pricing-card {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 1.5rem;
-  margin-top: 0.5rem;
-}
-
-.payment-card {
-  background: #fff7ed;
-  border: 1px solid #fdba74;
-  border-radius: 12px;
-  padding: 1.5rem;
-}
-
-.payment-card h3 {
-  margin: 0 0 1rem;
-  font-size: 1.1rem;
-  color: #9a3412;
-}
-
-.payment-option {
-  display: flex;
-  gap: 0.75rem;
-  align-items: flex-start;
-  color: #7c2d12;
-  margin-bottom: 0.9rem;
-}
-
-.payment-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.payment-form label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  color: #7c2d12;
-  font-weight: 600;
-}
-
-.payment-form input {
-  border: 1px solid #fdba74;
-  border-radius: 10px;
-  padding: 0.8rem 0.9rem;
-  font-size: 1rem;
-}
-
-.payment-row {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.75rem;
-}
-
-.save-option {
-  flex-direction: row !important;
-  align-items: center !important;
-}
-
-.payment-note {
-  margin: 0;
-  color: #9a3412;
-  font-size: 0.9rem;
-}
-
-.pricing-card h3 {
-  margin: 0 0 1rem;
-  font-size: 1.1rem;
-  color: #334155;
-}
-
-.pricing-row {
-  display: flex;
-  justify-content: space-between;
-  padding: 0.75rem 0;
-  border-bottom: 1px dashed #cbd5e1;
-  font-size: 1.1rem;
-  color: #475569;
-}
-
-.pricing-row:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.pricing-row strong {
-  color: #0f172a;
-  font-size: 1.2rem;
-}
-
-.actions {
-  margin-top: 1.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.error-banner {
-  margin: 0;
-  padding: 0.9rem 1rem;
-  border-radius: 10px;
-  background: #fef2f2;
-  color: #b91c1c;
-  border: 1px solid #fecaca;
-}
-
-.reserve-btn {
-  width: 100%;
-  padding: 1.2rem;
-  background: #2563eb;
-  color: white;
-  border: none;
-  border-radius: 12px;
-  font-size: 1.25rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.2s, box-shadow 0.2s;
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25);
-}
-
-.reserve-btn:hover:not(:disabled) {
-  background: #1d4ed8;
-  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.35);
-}
-
-.reserve-btn:disabled {
-  background: #94a3b8;
-  box-shadow: none;
-  cursor: not-allowed;
-}
-
-.terms {
-  text-align: center;
-  font-size: 0.85rem;
-  color: #94a3b8;
-  margin: 0;
-}
-
-@media (max-width: 640px) {
-  .reservation-view {
-    padding: 1rem;
-  }
-
-  .card-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .payment-row {
-    grid-template-columns: 1fr;
-  }
+@media (max-width: 900px) {
+  .reservation-layout { grid-template-columns: 1fr; padding: 2.5rem; }
 }
 </style>

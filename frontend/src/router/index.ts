@@ -65,6 +65,13 @@ const router = createRouter({
       meta: { requiresAuth: true, citizenOnly: true },
     },
     {
+      // Citizen settings for account/payment management
+      path: '/settings',
+      name: 'settings',
+      component: () => import('../views/SettingsView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/dashboard',
       name: 'dashboard',
       component: () => import('../views/DashboardView.vue'),

@@ -46,13 +46,17 @@ public class RentalService extends RentalSubject {
         if (!hasText(effectivePaymentInfo)) {
             throw new IllegalArgumentException("A payment method is required before reserving.");
         }
-
-        processReservationPayment(effectivePaymentInfo);
+        
+        // NO CHARGE HERE - Deferred to payForRental
         String paymentLabel = toPaymentLabel(effectivePaymentInfo);
-
+        
+        // Add to user's saved methods if it's new and they want to save it
         if (hasText(paymentInfo) && savePaymentMethod) {
-            user.setPaymentInfo(paymentLabel);
-            userRepository.save(user);
+            String label = toPaymentLabel(paymentInfo);
+            if (!user.getPaymentMethods().contains(label)) {
+                user.getPaymentMethods().add(label);
+                userRepository.save(user);
+            }
         }
         
         // Mutate the vehicle state so others cannot reserve it
@@ -105,6 +109,12 @@ public class RentalService extends RentalSubject {
             throw new IllegalArgumentException("You must complete the trip before paying.");
         }
         
+        // NOW WE CHARGE - Using the card saved at the start
+        String method = rental.getReservationPaymentMethod();
+        processReservationPayment(method);
+        
+        rental.setFinalPaymentMethod(method);
+        rental.setFinalPaymentProcessedAt(LocalDateTime.now());
         rental.setStatus(RentalStatus.PAID);
         rentalRepository.save(rental);
         return rental;

@@ -15,6 +15,7 @@ export interface Rental {
   reservationPaymentStatus?: string
   reservationPaymentProcessedAt?: string
   reservationPaymentAmount?: number
+  finalPaymentMethod?: string
 }
 
 export const useRentalStore = defineStore('rentals', () => {

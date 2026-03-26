@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import ProviderFleetManager from '../components/ProviderFleetManager.vue'
+import SettingsCard from '../components/SettingsCard.vue'
 import { useAuthStore } from '../stores/auth'
 
 const auth = useAuthStore()
@@ -72,19 +73,8 @@ const auth = useAuthStore()
         <RouterLink to="/analytics/rentals" class="action-btn">Rental Analytics</RouterLink>
       </div>
       
-      <div class="card profile-card" :class="{ 'provider-side-card': auth.isProvider }">
-        <h2>Profile Details</h2>
-        <div class="profile-list">
-          <div class="profile-row">
-            <span class="profile-label">Email</span>
-            <span class="profile-value">{{ auth.user?.email }}</span>
-          </div>
-          <div v-if="auth.user?.phone" class="profile-row">
-            <span class="profile-label">Phone</span>
-            <span class="profile-value">{{ auth.user?.phone }}</span>
-          </div>
-        </div>
-      </div>
+      <!-- Multi-role Settings & Profile Summary -->
+      <SettingsCard />
     </main>
   </div>
 </template>
