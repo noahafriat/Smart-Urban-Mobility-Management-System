@@ -35,12 +35,12 @@ onMounted(() => {
           <span class="view-tag">Market Intelligence</span>
           <span class="scope-pill provider">Multi-Provider View</span>
         </div>
-        <h1>Rental Operations & Revenue</h1>
+        <h1>Rental Analytics & Revenue</h1>
         <p>A consolidated view of historical rental volume, financial performance, and market distribution.</p>
       </div>
       <div class="header-actions">
         <button class="btn-refresh" @click="store.fetchRentals()" :disabled="store.loading">
-          {{ store.loading ? 'Syncing...' : '↻ Refresh Financials' }}
+          {{ store.loading ? 'Syncing...' : '↻ Refresh Rental Analytics' }}
         </button>
       </div>
     </header>
@@ -141,7 +141,7 @@ onMounted(() => {
                 <strong class="v green-text">Stable</strong>
               </div>
             </div>
-            <button class="btn-full" @click="store.fetchRentals()">Refresh Dataset</button>
+            <button class="btn-full" @click="store.fetchRentals()">↻ Refresh Rental Metrics</button>
           </section>
         </div>
       </div>

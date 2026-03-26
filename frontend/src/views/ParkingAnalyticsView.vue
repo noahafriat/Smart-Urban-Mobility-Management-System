@@ -30,7 +30,7 @@ onMounted(() => {
       </div>
       <div class="header-actions">
         <button class="btn-refresh" @click="store.fetchParking()" :disabled="store.loading">
-          {{ store.loading ? 'Syncing...' : '↻ Full Infrastructure Audit' }}
+          {{ store.loading ? 'Syncing...' : '↻ Sync Parking Analytics' }}
         </button>
       </div>
     </header>

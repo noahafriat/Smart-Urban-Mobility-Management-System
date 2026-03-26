@@ -34,7 +34,7 @@ onMounted(() => {
       </div>
       <div class="header-actions">
         <button class="btn-refresh" @click="store.fetchTransit()" :disabled="store.loading">
-          {{ store.loading ? 'Syncing...' : '↻ Full System Sync' }}
+          {{ store.loading ? 'Syncing...' : '↻ Sync Transit Analytics' }}
         </button>
       </div>
     </header>
