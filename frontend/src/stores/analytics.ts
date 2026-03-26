@@ -85,11 +85,13 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     }
   }
 
-  async function fetchRentals(providerId?: string) {
+  async function fetchRentals(providerId?: string, userId?: string) {
     loading.value = true
     error.value = null
     try {
-      const params = providerId ? { providerId } : {}
+      const params: Record<string, string> = {}
+      if (providerId) params.providerId = providerId
+      if (userId) params.userId = userId
       const res = await api.get('/analytics/rentals', { params })
       rentalData.value = res.data as RentalAnalytics
     } catch (e: any) {
@@ -99,11 +101,14 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     }
   }
 
-  async function fetchParking() {
+  async function fetchParking(providerId?: string) {
     loading.value = true
     error.value = null
     try {
-      const res = await api.get('/analytics/parking')
+      const params: Record<string, string> = {}
+      if (providerId) params.providerId = providerId
+
+      const res = await api.get('/analytics/parking', { params })
       parkingData.value = res.data as ParkingAnalytics
     } catch (e: any) {
       error.value = e.response?.data?.error || 'Failed to load parking analytics'

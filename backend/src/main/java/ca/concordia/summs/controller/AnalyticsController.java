@@ -41,8 +41,9 @@ public class AnalyticsController {
      */
     @GetMapping("/rentals")
     public ResponseEntity<Object> getRentalAnalytics(
-            @RequestParam(required = false) String providerId) {
-        return ResponseEntity.ok(analyticsService.getRentalAnalytics(providerId));
+            @RequestParam(required = false) String providerId,
+            @RequestParam(required = false) String userId) {
+        return ResponseEntity.ok(analyticsService.getRentalAnalytics(providerId, userId));
     }
 
     /**
@@ -51,8 +52,9 @@ public class AnalyticsController {
      * GET /api/analytics/parking
      */
     @GetMapping("/parking")
-    public ResponseEntity<Object> getParkingAnalytics() {
-        return ResponseEntity.ok(analyticsService.getParkingAnalytics());
+    public ResponseEntity<Object> getParkingAnalytics(
+            @RequestParam(required = false) String providerId) {
+        return ResponseEntity.ok(analyticsService.getParkingAnalytics(providerId));
     }
     /**
      * Gateway / Service-Level Analytic — probes the live BIXI GBFS API.
