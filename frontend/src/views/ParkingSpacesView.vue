@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 
 import { api } from '../api'
 
@@ -16,6 +17,7 @@ interface ParkingGarage {
 const garages = ref<ParkingGarage[]>([])
 const loading = ref(true)
 const error = ref('')
+const route = useRoute()
 
 const fetchGarages = async () => {
   try {
@@ -61,7 +63,12 @@ const getAvailabilityClass = (available: number, total: number) => {
     </div>
 
     <div v-else class="garages-grid">
-      <div v-for="garage in garages" :key="garage.id" class="garage-card">
+      <div 
+        v-for="garage in garages" 
+        :key="garage.id" 
+        class="garage-card"
+        :class="{ 'highlighted-garage': garage.id === route.query.selectedId }"
+      >
         <h3>{{ garage.name }}</h3>
         
         <div class="availability-meter">
@@ -252,4 +259,11 @@ const getAvailabilityClass = (available: number, total: number) => {
 }
 
 .map-link:hover { text-decoration: underline; }
+
+/* Highlight effect for deep-linked selection from map */
+.highlighted-garage {
+  border: 2px solid #3b82f6 !important;
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.4) !important;
+  transform: translateY(-4px); /* Keep it lifted */
+}
 </style>

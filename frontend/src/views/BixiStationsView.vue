@@ -4,6 +4,7 @@
  * Fetches real-time data from the BIXI GBFS API via the SUMMS backend.
  */
 import { onMounted, ref, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { api } from '../api'
 
 interface BixiStation {
@@ -22,6 +23,7 @@ const syncedAt = ref<string | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
 const search = ref('')
+const route = useRoute()
 
 const filtered = computed(() => {
   const q = search.value.toLowerCase().trim()
@@ -31,7 +33,12 @@ const filtered = computed(() => {
   )
 })
 
-onMounted(fetchStations)
+onMounted(async () => {
+  if (route.query.station) {
+    search.value = route.query.station as string
+  }
+  await fetchStations()
+})
 
 async function fetchStations() {
   loading.value = true

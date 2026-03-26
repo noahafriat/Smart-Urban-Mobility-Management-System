@@ -1,4 +1,5 @@
 <script setup lang="ts">
+
 import ProviderFleetManager from '../components/ProviderFleetManager.vue'
 import SettingsCard from '../components/SettingsCard.vue'
 import { useAuthStore } from '../stores/auth'
@@ -7,7 +8,7 @@ const auth = useAuthStore()
 </script>
 
 <template>
-  <div class="dashboard">
+  <div class="dashboard fade-in">
     <header class="dash-header">
       <div class="welcome-box">
         <h1>Hello, {{ auth.user?.name }}</h1>
@@ -18,10 +19,10 @@ const auth = useAuthStore()
     </header>
 
     <main class="dash-content" :class="{ 'provider-layout': auth.isProvider }">
+      <!-- ── Citizen Interaction Hub ── -->
       <div class="card" v-if="auth.isCitizen">
         <h2>Your Commute</h2>
         <p>You can search for vehicles, view transit, and reserve parking.</p>
-        <!-- Epic 2 Rental Components -->
         <RouterLink to="/vehicles" class="action-btn mb">Search Vehicles</RouterLink>
         <RouterLink to="/rentals" class="action-btn secondary">My Rentals</RouterLink>
       </div>
@@ -44,26 +45,11 @@ const auth = useAuthStore()
         <RouterLink to="/parking-spaces" class="action-btn" style="background: #2b6cb0;">View Parking Spaces</RouterLink>
       </div>
 
+      <!-- ── Provider Command Center ── -->
       <div class="card provider-main-card" v-if="auth.isProvider">
         <h2>Fleet Overview</h2>
         <p>Manage your fleet of scooters and cars.</p>
         <ProviderFleetManager v-if="auth.user" :provider-id="auth.user.id" />
-      </div>
-
-      <!-- Shared Analytics card: both City Admin and System Admin see this -->
-      <div class="card" v-if="auth.isAdmin">
-        <h2>City Analytics</h2>
-        <p>Monitor mobility trends, vehicle utilization, and parking occupancy.</p>
-        <RouterLink to="/analytics/transit" class="action-btn mb">Transit Analytics</RouterLink>
-        <RouterLink to="/analytics/rentals" class="action-btn mb secondary">Rental Analytics</RouterLink>
-        <RouterLink to="/analytics/parking" class="action-btn secondary">Parking Analytics</RouterLink>
-      </div>
-
-      <!-- System Admin exclusive card -->
-      <div class="card sys-admin-card" v-if="auth.isSysAdmin">
-        <h2>System Administration</h2>
-        <p>Manage user accounts, assign roles, and oversee platform-level settings.</p>
-        <RouterLink to="/admin/users" class="action-btn mb danger">Manage User Roles</RouterLink>
       </div>
 
       <!-- Provider Fleet Analytics card -->
@@ -73,202 +59,99 @@ const auth = useAuthStore()
         <RouterLink to="/analytics/rentals" class="action-btn">Rental Analytics</RouterLink>
       </div>
       
-      <!-- Multi-role Settings & Profile Summary -->
-      <SettingsCard />
+      <!-- Citizen-only Settings & Wallet Summary -->
+      <SettingsCard v-if="auth.isCitizen" />
     </main>
+
+    <!-- ── Administrative Console ── -->
+    <div v-if="auth.isAdmin || auth.isSysAdmin" class="admin-container">
+       <header class="hub-header">
+        <h2>Administrative Console</h2>
+        <p>Operational oversight for urban mobility and platform governance.</p>
+      </header>
+
+      <div class="admin-grid">
+        <!-- City Analytics -->
+        <div v-if="auth.isAdmin" class="card admin-feature">
+          <div class="af-icon analytics">📊</div>
+          <h3>Central Intelligence</h3>
+          <p>Analyze mobility density, transit flow, and infrastructure stress across all sectors.</p>
+          <div class="af-actions">
+            <RouterLink to="/analytics/transit" class="btn outline">Transit Data</RouterLink>
+            <RouterLink to="/analytics/rentals" class="btn outline">Rental Data</RouterLink>
+            <RouterLink to="/analytics/parking" class="btn outline">Parking Data</RouterLink>
+          </div>
+        </div>
+
+        <!-- System Settings -->
+        <div v-if="auth.isSysAdmin" class="card admin-feature dangerous">
+          <div class="af-icon system">⚙️</div>
+          <h3>System Governance</h3>
+          <p>Identity management, role audits, and enterprise-level platform configuration.</p>
+          <div class="af-actions">
+            <RouterLink to="/admin/users" class="btn solid danger">User Management</RouterLink>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .dashboard {
-  padding: 2rem clamp(1rem, 2vw, 2.5rem);
-  width: min(96vw, 1700px);
+  padding: 3rem clamp(1rem, 5vw, 4rem);
+  max-width: 1400px;
   margin: 0 auto;
+  font-family: 'Inter', system-ui, sans-serif;
+  color: #0f172a;
 }
 
-.dash-header {
-  margin-bottom: 2rem;
-}
+.dash-header { margin-bottom: 3.5rem; }
+.welcome-box { border-radius: 28px; background: white; padding: 2.5rem; border: 1px solid #f1f5f9; box-shadow: 0 10px 30px -10px rgba(0,0,0,0.04); display: flex; justify-content: space-between; align-items: center; }
 
-.welcome-box {
-  background: #fff;
-  padding: 2rem;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
+h1 { margin: 0; font-size: 2.5rem; font-weight: 900; letter-spacing: -0.02em; }
+.role-badge { padding: 0.6rem 1.25rem; border-radius: 100px; font-weight: 850; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.role-badge.citizen { background: #eff6ff; color: #3b82f6; }
+.role-badge.mobility_provider { background: #f0fdf4; color: #10b981; }
+.role-badge.city_admin { background: #fef2f2; color: #ef4444; }
+.role-badge.system_admin { background: #fdf4ff; color: #a855f7; }
 
-h1 {
-  margin: 0;
-  font-size: 2rem;
-  color: #1a202c;
-  font-weight: 700;
-}
+.dash-content { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 2rem; margin-bottom: 5rem; align-items: start; }
+.dash-content.provider-layout { grid-template-columns: 1fr 380px; }
 
-.role-badge {
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  font-weight: 700;
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin: 0;
-}
+.card { background: white; border: 1px solid #f1f5f9; border-radius: 28px; padding: 2.5rem; box-shadow: 0 10px 40px -10px rgba(0,0,0,0.04); transition: 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+.card:hover { transform: translateY(-4px); box-shadow: 0 20px 50px -15px rgba(0,0,0,0.08); }
 
-.role-badge.citizen { background: #fed7d7; color: #9b2c2c; }
-.role-badge.mobility_provider { background: #c6f6d5; color: #276749; }
-.role-badge.city_admin { background: #bee3f8; color: #2c5282; }
-.role-badge.system_admin { background: #e9d8fd; color: #553c9a; }
+h2 { font-size: 1.4rem; font-weight: 850; margin-bottom: 0.75rem; color: #1e293b; }
+p { color: #64748b; font-size: 1rem; line-height: 1.6; font-weight: 500; }
 
-.dash-content {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1.5rem;
-  align-items: start;
-}
+.action-btn { display: block; width: 100%; border: none; padding: 1rem; border-radius: 16px; font-weight: 800; text-decoration: none; text-align: center; font-size: 1rem; cursor: pointer; transition: 0.2s; background: #0f172a; color: white; margin-top: 2rem; }
+.action-btn:hover { background: #1e293b; transform: translateY(-2px); }
+.action-btn.secondary { background: #f1f5f9; color: #475569; margin-top: 0.75rem; }
+.action-btn.mb { margin-bottom: 0.75rem; }
 
-.dash-content.provider-layout {
-  grid-template-columns: minmax(0, 1.45fr) minmax(300px, 360px);
-  gap: 1.25rem;
-}
+/* ── Admin Console Styles ── */
+.admin-container { margin-top: 2rem; padding-top: 4rem; border-top: 2px solid #f1f5f9; }
+.hub-header { margin-bottom: 3rem; }
+.hub-header h2 { font-size: 2rem; font-weight: 900; color: #0f172a; }
+.hub-header p { font-size: 1.15rem; }
 
-.card {
-  background: #fff;
-  padding: 1.5rem;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-}
+.admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 2rem; }
+.admin-feature { border: 2px solid #f1f5f9; }
+.af-icon { font-size: 2.5rem; margin-bottom: 1.5rem; }
+.af-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 2rem; }
 
-.provider-main-card {
-  min-width: 0;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-  border: 1px solid #dbe7f3;
-}
+.btn { padding: 0.75rem 1.5rem; border-radius: 12px; font-weight: 800; text-decoration: none; font-size: 0.9rem; transition: 0.2s; }
+.btn.outline { border: 2px solid #e2e8f0; color: #475569; }
+.btn.outline:hover { background: #f8fafc; border-color: #cbd5e1; }
+.btn.solid.danger { background: #ef4444; color: white; }
+.btn.solid.danger:hover { background: #dc2626; box-shadow: 0 10px 20px -5px rgba(239, 68, 68, 0.4); }
 
-.profile-card {
-  padding: 1rem 1.1rem;
-  align-self: start;
-}
-
-.provider-side-card {
-  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-  border: 1px solid #e2e8f0;
-}
-
-h2 {
-  font-size: 1.25rem;
-  margin-top: 0;
-  color: #2d3748;
-}
-
-p {
-  color: #718096;
-  font-size: 0.95rem;
-  line-height: 1.5;
-}
-
-.placeholder {
-  margin-top: 1rem;
-  background: #edf2f7;
-  border: 1px dashed #cbd5e0;
-  color: #a0aec0;
-  padding: 1.5rem;
-  border-radius: 8px;
-  text-align: center;
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-
-.action-btn {
-  display: block;
-  margin-top: 1.5rem;
-  padding: 0.85rem;
-  background: #3182ce;
-  color: white;
-  text-align: center;
-  border-radius: 8px;
-  text-decoration: none;
-  font-weight: 600;
-  transition: background 0.2s;
-}
-
-.action-btn:hover {
-  background: #2b6cb0;
-}
-
-.action-btn.mb {
-  margin-bottom: 0.75rem;
-}
-
-.action-btn.secondary {
-  background: #edf2f7;
-  color: #2d3748;
-  margin-top: 0;
-  border: 1px solid #e2e8f0;
-}
-
-.action-btn.secondary:hover {
-  background: #e2e8f0;
-}
-
-.action-btn.danger {
-  background: #c53030;
-  margin-top: 15px;
-}
-
-.action-btn.danger:hover {
-  background: #9b2c2c;
-}
-
-.sys-admin-card {
-  border-left: 4px solid #c53030;
-}
-
-.info-note {
-  margin-top: 1rem;
-  background: #fff5f5;
-  border: 1px solid #fed7d7;
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
-  font-size: 0.85rem;
-  color: #742a2a;
-  line-height: 1.5;
-}
-
-.profile-list {
-  display: grid;
-  gap: 0.75rem;
-  margin-top: 1rem;
-}
-
-.profile-row {
-  display: grid;
-  gap: 0.2rem;
-  padding: 0.7rem 0.8rem;
-  border: 1px solid #edf2f7;
-  border-radius: 10px;
-  background: #f8fafc;
-}
-
-.profile-label {
-  color: #718096;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-weight: 700;
-}
-
-.profile-value {
-  color: #2d3748;
-  font-size: 0.95rem;
-  word-break: break-word;
-}
+.fade-in { animation: fadeIn 0.8s ease-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
 
 @media (max-width: 900px) {
-  .dash-content.provider-layout {
-    grid-template-columns: 1fr;
-  }
+  .dash-content.provider-layout { grid-template-columns: 1fr; }
+  .admin-grid { grid-template-columns: 1fr; }
 }
 </style>

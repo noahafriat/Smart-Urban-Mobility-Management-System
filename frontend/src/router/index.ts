@@ -72,6 +72,13 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      // Public Transportation Hub (Citizens)
+      path: '/public-transport',
+      name: 'public-transport',
+      component: () => import('../views/PublicTransportView.vue'),
+      meta: { requiresAuth: true, citizenOnly: true },
+    },
+    {
       path: '/dashboard',
       name: 'dashboard',
       component: () => import('../views/DashboardView.vue'),
