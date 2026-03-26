@@ -11,6 +11,11 @@ export interface Rental {
   startTime: string
   endTime: string | null
   totalCost: number
+  reservationPaymentMethod?: string
+  reservationPaymentStatus?: string
+  reservationPaymentProcessedAt?: string
+  reservationPaymentAmount?: number
+  finalPaymentMethod?: string
 }
 
 export const useRentalStore = defineStore('rentals', () => {
@@ -32,11 +37,19 @@ export const useRentalStore = defineStore('rentals', () => {
   }
 
   // Epic 2.2: Reservation
-  async function reserve(userId: string, vehicleId: string) {
+  async function reserve(userId: string, vehicleId: string, options?: {
+    paymentInfo?: string
+    savePaymentMethod?: boolean
+  }) {
     loading.value = true
     error.value = null
     try {
-      await api.post('/rentals/reserve', { userId, vehicleId })
+      await api.post('/rentals/reserve', {
+        userId,
+        vehicleId,
+        paymentInfo: options?.paymentInfo,
+        savePaymentMethod: String(options?.savePaymentMethod ?? false),
+      })
       // Refresh the feed
       await fetchUserRentals(userId)
     } catch (e: any) {

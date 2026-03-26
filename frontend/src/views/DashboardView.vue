@@ -1,126 +1,69 @@
 <script setup lang="ts">
+
 import ProviderFleetManager from '../components/ProviderFleetManager.vue'
+import SettingsCard from '../components/SettingsCard.vue'
 import { useAuthStore } from '../stores/auth'
 
 const auth = useAuthStore()
 </script>
 
 <template>
-  <div class="dashboard-shell">
-    
-    <!-- ── Welcome Banner ── -->
-    <section class="welcome-banner" :class="auth.user?.role?.toLowerCase().replace('_', '-')">
-      <div class="banner-content">
-        <div class="banner-text">
-          <p class="banner-eyebrow">Smart Urban Mobility Management System</p>
-          <h1>Hello, {{ auth.user?.name }}</h1>
-          <p class="banner-subtext">Welcome to your central hub for exploring and managing Montréal mobility.</p>
-        </div>
-        <div class="banner-badge">
+  <div class="dashboard fade-in">
+    <header class="dash-header">
+      <div class="welcome-box">
+        <h1>Hello, {{ auth.user?.name }}</h1>
+        <p class="role-badge" :class="auth.user?.role?.toLowerCase()">
           {{ auth.user?.role?.replace('_', ' ') }}
-        </div>
+        </p>
       </div>
-    </section>
+    </header>
 
-    <!-- ── Citizen Hub ── -->
-    <div v-if="auth.isCitizen" class="hub-container">
-      <header class="hub-header">
-        <h2>Your Mobility Services</h2>
-        <p>Explore tools for your daily commute and city travels.</p>
-      </header>
-
-      <div class="services-grid">
-        <!-- Mobility Map Card -->
-        <RouterLink to="/mobility-map" class="feature-card map-card">
-          <div class="fc-icon">🗺️</div>
-          <div class="fc-body">
-            <h3>Unified Mobility Map</h3>
-            <p>View car rentals, scooter docks, BIXI bikes, and parking garages on one live map.</p>
-            <div class="fc-action">Open Map →</div>
-          </div>
-        </RouterLink>
-
-        <!-- Transit Hub Card -->
-        <RouterLink to="/public-transport" class="feature-card transit-card">
-          <div class="fc-icon">🚇</div>
-          <div class="fc-body">
-            <h3>Public Transit Hub</h3>
-            <p>Plan trips with live schedules and step-by-step directions across Montréal.</p>
-            <div class="fc-action">Start Planning →</div>
-          </div>
-        </RouterLink>
-
-        <!-- Vehicles Card -->
-        <RouterLink to="/vehicles" class="feature-card vehicle-card">
-          <div class="fc-icon">🚗</div>
-          <div class="fc-body">
-            <h3>Vehicle Search</h3>
-            <p>Find and reserve electric cars or scooters in your immediate area.</p>
-            <div class="fc-action">Find Vehicles →</div>
-          </div>
-        </RouterLink>
-
-        <!-- BIXI Card -->
-        <RouterLink to="/bixi" class="feature-card bixi-card">
-          <div class="fc-icon">🚲</div>
-          <div class="fc-body">
-            <h3>BIXI Stations</h3>
-            <p>Check real-time bike and dock availability at any station across the city.</p>
-            <div class="fc-action">Check Availability →</div>
-          </div>
-        </RouterLink>
-
-        <!-- Parking Card -->
-        <RouterLink to="/parking-spaces" class="feature-card parking-card">
-          <div class="fc-icon">🅿️</div>
-          <div class="fc-body">
-            <h3>Parking Capacity</h3>
-            <p>Locate available parking garages and monitor live occupancy data.</p>
-            <div class="fc-action">Find Parking →</div>
-          </div>
-        </RouterLink>
-
-        <!-- My Rentals Card -->
-        <RouterLink to="/rentals" class="feature-card rental-card">
-          <div class="fc-icon">📋</div>
-          <div class="fc-body">
-            <h3>My Rentals</h3>
-            <p>Manage your active reservations, view history, and handle vehicle returns.</p>
-            <div class="fc-action">Manage Rentals →</div>
-          </div>
-        </RouterLink>
+    <main class="dash-content" :class="{ 'provider-layout': auth.isProvider }">
+      <!-- ── Citizen Interaction Hub ── -->
+      <div class="card" v-if="auth.isCitizen">
+        <h2>Your Commute</h2>
+        <p>You can search for vehicles, view transit, and reserve parking.</p>
+        <RouterLink to="/vehicles" class="action-btn mb">Search Vehicles</RouterLink>
+        <RouterLink to="/rentals" class="action-btn secondary">My Rentals</RouterLink>
       </div>
-    </div>
 
-    <!-- ── Provider Command Center ── -->
-    <div v-if="auth.isProvider" class="admin-container">
-      <header class="hub-header">
-        <h2>Fleet Command Center</h2>
-        <p>Real-time oversight and maintenance of your mobility inventory.</p>
-      </header>
-
-      <div class="admin-layout">
-        <section class="main-admin-panel">
-          <div class="card manager-card">
-            <div class="card-header">
-              <h3>Inventory & Fleet Management</h3>
-              <RouterLink to="/analytics/rentals" class="text-link">Full Analytics ↗</RouterLink>
-            </div>
-            <ProviderFleetManager v-if="auth.user" :provider-id="auth.user.id" />
-          </div>
-        </section>
-        
-        <aside class="side-admin-panel">
-          <div class="card analytics-mini">
-            <h3>Fleet Health</h3>
-            <p>Overview of utilization and energy levels across your current fleet.</p>
-            <RouterLink to="/analytics/rentals" class="btn">View Analytics Feed</RouterLink>
-          </div>
-        </aside>
+      <div class="card" v-if="auth.isCitizen">
+        <h2>🚲 BIXI Live Availability</h2>
+        <p>See real-time bike counts at every active BIXI station across Montréal.</p>
+        <RouterLink to="/bixi" class="action-btn" style="background: #16a34a;">View BIXI Stations</RouterLink>
       </div>
-    </div>
 
-    <!-- ── Admin Controls ── -->
+      <div class="card" v-if="auth.isCitizen">
+        <h2>🗺 Mobility Map</h2>
+        <p>View car rentals, scooter docks, BIXI bikes, and parking garages on one live map.</p>
+        <RouterLink to="/mobility-map" class="action-btn" style="background: #0f766e;">Open Mobility Map</RouterLink>
+      </div>
+
+      <div class="card" v-if="auth.isCitizen">
+        <h2>🅿️ Parking Spaces</h2>
+        <p>Find available parking spaces across the city and view live capacity data.</p>
+        <RouterLink to="/parking-spaces" class="action-btn" style="background: #2b6cb0;">View Parking Spaces</RouterLink>
+      </div>
+
+      <!-- ── Provider Command Center ── -->
+      <div class="card provider-main-card" v-if="auth.isProvider">
+        <h2>Fleet Overview</h2>
+        <p>Manage your fleet of scooters and cars.</p>
+        <ProviderFleetManager v-if="auth.user" :provider-id="auth.user.id" />
+      </div>
+
+      <!-- Provider Fleet Analytics card -->
+      <div class="card provider-side-card" v-if="auth.isProvider">
+        <h2>Fleet Analytics</h2>
+        <p>View rental trends and activity for your fleet.</p>
+        <RouterLink to="/analytics/rentals" class="action-btn">Rental Analytics</RouterLink>
+      </div>
+      
+      <!-- Citizen-only Settings & Wallet Summary -->
+      <SettingsCard v-if="auth.isCitizen" />
+    </main>
+
+    <!-- ── Administrative Console ── -->
     <div v-if="auth.isAdmin || auth.isSysAdmin" class="admin-container">
        <header class="hub-header">
         <h2>Administrative Console</h2>
@@ -151,317 +94,64 @@ const auth = useAuthStore()
         </div>
       </div>
     </div>
-
   </div>
 </template>
 
 <style scoped>
-/* ── Variables & Setup ── */
-.dashboard-shell {
-  padding: 1.5rem clamp(1rem, 3vw, 3rem);
-  max-width: 1440px;
+.dashboard {
+  padding: 3rem clamp(1rem, 5vw, 4rem);
+  max-width: 1400px;
   margin: 0 auto;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  color: #1e293b;
-}
-
-/* ── Banner ── */
-.welcome-banner {
-  border-radius: 24px;
-  padding: 3rem;
-  margin-bottom: 3rem;
-  position: relative;
-  overflow: hidden;
-  background: white;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 25px rgba(0, 0, 0, 0.04);
-}
-
-.welcome-banner::before {
-  content: '';
-  position: absolute;
-  top: 0; right: 0; bottom: 0; left: 0;
-  opacity: 0.04;
-  background-image: radial-gradient(#1e293b 1.5px, transparent 0);
-  background-size: 24px 24px;
-}
-
-/* Role Specific Banner Colors */
-.welcome-banner.citizen { border-left: 8px solid #3b82f6; }
-.welcome-banner.mobility-provider { border-left: 8px solid #10b981; }
-.welcome-banner.city-admin { border-left: 8px solid #8b5cf6; }
-.welcome-banner.system-admin { border-left: 8px solid #ef4444; }
-
-.banner-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  position: relative;
-  z-index: 1;
-}
-
-.banner-eyebrow {
-  font-size: 0.8rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: #64748b;
-  margin-bottom: 0.5rem;
-}
-
-.banner-text h1 {
-  font-size: clamp(1.8rem, 4vw, 2.75rem);
-  font-weight: 900;
-  letter-spacing: -0.03em;
-  margin: 0 0 0.5rem;
+  font-family: 'Inter', system-ui, sans-serif;
   color: #0f172a;
 }
 
-.banner-subtext {
-  font-size: 1.1rem;
-  color: #475569;
-  margin: 0;
-  max-width: 500px;
-}
+.dash-header { margin-bottom: 3.5rem; }
+.welcome-box { border-radius: 28px; background: white; padding: 2.5rem; border: 1px solid #f1f5f9; box-shadow: 0 10px 30px -10px rgba(0,0,0,0.04); display: flex; justify-content: space-between; align-items: center; }
 
-.banner-badge {
-  padding: 0.5rem 1.25rem;
-  background: #f1f5f9;
-  color: #334155;
-  border-radius: 999px;
-  font-weight: 800;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  border: 1px solid #e2e8f0;
-}
+h1 { margin: 0; font-size: 2.5rem; font-weight: 900; letter-spacing: -0.02em; }
+.role-badge { padding: 0.6rem 1.25rem; border-radius: 100px; font-weight: 850; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.role-badge.citizen { background: #eff6ff; color: #3b82f6; }
+.role-badge.mobility_provider { background: #f0fdf4; color: #10b981; }
+.role-badge.city_admin { background: #fef2f2; color: #ef4444; }
+.role-badge.system_admin { background: #fdf4ff; color: #a855f7; }
 
-/* ── Container Headers ── */
-.hub-header {
-  margin-bottom: 2rem;
-}
+.dash-content { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 2rem; margin-bottom: 5rem; align-items: start; }
+.dash-content.provider-layout { grid-template-columns: 1fr 380px; }
 
-.hub-header h2 {
-  font-size: 1.75rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  margin: 0 0 0.4rem;
-  color: #0f172a;
-}
+.card { background: white; border: 1px solid #f1f5f9; border-radius: 28px; padding: 2.5rem; box-shadow: 0 10px 40px -10px rgba(0,0,0,0.04); transition: 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+.card:hover { transform: translateY(-4px); box-shadow: 0 20px 50px -15px rgba(0,0,0,0.08); }
 
-.hub-header p {
-  color: #64748b;
-  font-size: 1.05rem;
-  margin: 0;
-}
+h2 { font-size: 1.4rem; font-weight: 850; margin-bottom: 0.75rem; color: #1e293b; }
+p { color: #64748b; font-size: 1rem; line-height: 1.6; font-weight: 500; }
 
-/* ── Services Grid ── */
-.services-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 4rem;
-}
+.action-btn { display: block; width: 100%; border: none; padding: 1rem; border-radius: 16px; font-weight: 800; text-decoration: none; text-align: center; font-size: 1rem; cursor: pointer; transition: 0.2s; background: #0f172a; color: white; margin-top: 2rem; }
+.action-btn:hover { background: #1e293b; transform: translateY(-2px); }
+.action-btn.secondary { background: #f1f5f9; color: #475569; margin-top: 0.75rem; }
+.action-btn.mb { margin-bottom: 0.75rem; }
 
-.feature-card {
-  display: flex;
-  gap: 1.5rem;
-  padding: 2rem;
-  background: #fff;
-  border-radius: 20px;
-  border: 1px solid #e2e8f0;
-  text-decoration: none;
-  transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
-  position: relative;
-  cursor: pointer;
-}
+/* ── Admin Console Styles ── */
+.admin-container { margin-top: 2rem; padding-top: 4rem; border-top: 2px solid #f1f5f9; }
+.hub-header { margin-bottom: 3rem; }
+.hub-header h2 { font-size: 2rem; font-weight: 900; color: #0f172a; }
+.hub-header p { font-size: 1.15rem; }
 
-.feature-card:hover {
-  transform: translateY(-8px);
-  border-color: transparent;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
-}
+.admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 2rem; }
+.admin-feature { border: 2px solid #f1f5f9; }
+.af-icon { font-size: 2.5rem; margin-bottom: 1.5rem; }
+.af-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 2rem; }
 
-.fc-icon {
-  font-size: 2.5rem;
-  width: 64px;
-  height: 64px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #f8fafc;
-  border-radius: 16px;
-  transition: transform 0.3s;
-}
+.btn { padding: 0.75rem 1.5rem; border-radius: 12px; font-weight: 800; text-decoration: none; font-size: 0.9rem; transition: 0.2s; }
+.btn.outline { border: 2px solid #e2e8f0; color: #475569; }
+.btn.outline:hover { background: #f8fafc; border-color: #cbd5e1; }
+.btn.solid.danger { background: #ef4444; color: white; }
+.btn.solid.danger:hover { background: #dc2626; box-shadow: 0 10px 20px -5px rgba(239, 68, 68, 0.4); }
 
-.feature-card:hover .fc-icon {
-  transform: scale(1.1) rotate(-5deg);
-}
+.fade-in { animation: fadeIn 0.8s ease-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
 
-.fc-body h3 {
-  font-size: 1.35rem;
-  font-weight: 800;
-  margin: 0 0 0.6rem;
-  color: #0f172a;
-}
-
-.fc-body p {
-  font-size: 0.95rem;
-  line-height: 1.6;
-  color: #64748b;
-  margin: 0 0 1.25rem;
-}
-
-.fc-action {
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: #3b82f6;
-  transition: padding-left 0.2s;
-}
-
-.feature-card:hover .fc-action {
-  padding-left: 6px;
-}
-
-/* Card Themes */
-.map-card:hover     { background: linear-gradient(135deg, #fff 60%, #f0fdfa 100%); }
-.map-card:hover .fc-action { color: #0d9488; }
-
-.transit-card:hover { background: linear-gradient(135deg, #fff 60%, #f5f3ff 100%); }
-.transit-card:hover .fc-action { color: #7c3aed; }
-
-.vehicle-card:hover { background: linear-gradient(135deg, #fff 60%, #eff6ff 100%); }
-.vehicle-card:hover .fc-action { color: #3b82f6; }
-
-.bixi-card:hover    { background: linear-gradient(135deg, #fff 60%, #f0fdf4 100%); }
-.bixi-card:hover .fc-action { color: #16a34a; }
-
-.parking-card:hover { background: linear-gradient(135deg, #fff 60%, #f8fafc 100%); }
-.parking-card:hover .fc-action { color: #475569; }
-
-.rental-card:hover  { background: linear-gradient(135deg, #fff 60%, #fffbeb 100%); }
-.rental-card:hover .fc-action { color: #d97706; }
-
-/* ── Provider/Admin Layouts ── */
-.admin-container {
-  margin-top: 2rem;
-}
-
-.admin-layout {
-  display: grid;
-  grid-template-columns: 1fr 340px;
-  gap: 1.5rem;
-  align-items: start;
-}
-
-.card {
-  background: white;
-  border-radius: 20px;
-  border: 1px solid #e2e8f0;
-  padding: 1.75rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #f1f5f9;
-}
-
-.card-header h3 { margin: 0; font-size: 1.3rem; font-weight: 800; }
-
-.text-link {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #3b82f6;
-  text-decoration: none;
-}
-
-.analytics-mini h3 { font-size: 1.2rem; font-weight: 800; margin-bottom: 0.75rem; }
-.analytics-mini p { margin-bottom: 1.5rem; }
-
-/* ── Admin Grid ── */
-.admin-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: 1.5rem;
-}
-
-.admin-feature {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  text-align: left;
-}
-
-.af-icon {
-  font-size: 2rem;
-  margin-bottom: 1.25rem;
-  padding: 1rem;
-  background: #f8fafc;
-  border-radius: 14px;
-}
-
-.admin-feature h3 { font-size: 1.4rem; font-weight: 800; margin: 0 0 0.75rem; }
-.admin-feature p { margin-bottom: 1.5rem; max-width: 450px; }
-
-.af-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  margin-top: auto;
-}
-
-/* ── Shared Buttons ── */
-.btn {
-  padding: 0.7rem 1.25rem;
-  border-radius: 10px;
-  font-size: 0.9rem;
-  font-weight: 700;
-  text-decoration: none;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: inline-block;
-}
-
-.btn.outline {
-  border: 1.5px solid #e2e8f0;
-  color: #475569;
-}
-
-.btn.outline:hover {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
-}
-
-.btn.solid {
-  background: #3b82f6;
-  color: white;
-  border: none;
-}
-
-.btn.solid:hover { background: #2563eb; }
-
-.btn.danger {
-  background: #ef4444;
-  color: white;
-}
-.btn.danger:hover { background: #dc2626; }
-
-/* ── Responsive ── */
-@media (max-width: 1024px) {
-  .admin-layout { grid-template-columns: 1fr; }
-  .services-grid { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
-}
-
-@media (max-width: 640px) {
-  .welcome-banner { padding: 2rem; }
-  .banner-content { flex-direction: column; align-items: flex-start; gap: 1.5rem; }
-  .services-grid { grid-template-columns: 1fr; }
-  .feature-card { padding: 1.5rem; }
-  .fc-icon { width: 48px; height: 48px; font-size: 1.75rem; }
+@media (max-width: 900px) {
+  .dash-content.provider-layout { grid-template-columns: 1fr; }
+  .admin-grid { grid-template-columns: 1fr; }
 }
 </style>

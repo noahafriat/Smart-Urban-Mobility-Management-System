@@ -50,7 +50,15 @@ public class UserService {
         if (updates.containsKey("phone"))                user.setPhone(updates.get("phone"));
         if (updates.containsKey("preferredCity"))        user.setPreferredCity(updates.get("preferredCity"));
         if (updates.containsKey("preferredMobilityType"))user.setPreferredMobilityType(updates.get("preferredMobilityType"));
-        if (updates.containsKey("paymentInfo"))          user.setPaymentInfo(updates.get("paymentInfo"));
+        if (updates.containsKey("paymentMethods")) {
+             String m = updates.get("paymentMethods");
+             if (m != null) {
+                 user.getPaymentMethods().clear();
+                 for (String s : m.split(",")) {
+                     if (!s.isBlank()) user.getPaymentMethods().add(s.trim());
+                 }
+             }
+        }
         if (updates.containsKey("password") && !updates.get("password").isBlank())
             user.setPassword(updates.get("password"));
 
@@ -101,7 +109,10 @@ public class UserService {
         map.put("phone",                user.getPhone());
         map.put("preferredCity",        user.getPreferredCity());
         map.put("preferredMobilityType",user.getPreferredMobilityType());
-        map.put("paymentInfo",          user.getPaymentInfo());
+        map.put("hasPaymentInfo",       !user.getPaymentMethods().isEmpty());
+        map.put("paymentMethods",       user.getPaymentMethods());
+        // For compatibility (most recent or first card)
+        map.put("paymentInfo",          user.getPaymentMethods().isEmpty() ? "" : user.getPaymentMethods().get(0));
         return map;
     }
 }
