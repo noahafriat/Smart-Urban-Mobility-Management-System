@@ -5,6 +5,7 @@ import { api } from '../api'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { Vehicle } from '../stores/vehicles'
+import { useAuthStore } from '../stores/auth'
 
 interface BixiStation {
   stationId: string
@@ -43,6 +44,7 @@ const error = ref<string | null>(null)
 const vehicles = ref<Vehicle[]>([])
 const stations = ref<BixiStation[]>([])
 const garages = ref<ParkingGarage[]>([])
+const auth = useAuthStore()
 
 const showCars = ref(true)
 const showScooters = ref(true)
@@ -85,6 +87,19 @@ const scooterDocks = computed<ScooterDock[]>(() => {
 })
 
 onMounted(async () => {
+  // Lock layers for providers
+  if (auth.isProvider) {
+    if (auth.user?.providerType === 'CAR') {
+      showScooters.value = false
+      showBixi.value = false
+      showGarages.value = false
+    } else if (auth.user?.providerType === 'SCOOTER') {
+      showCars.value = false
+      showGarages.value = false
+      showBixi.value = false
+    }
+  }
+
   await fetchData()
   await nextTick()
   initMap()
@@ -262,10 +277,10 @@ async function refreshMapData() {
     </header>
 
     <div class="controls">
-      <label><input v-model="showCars" type="checkbox" @change="toggleLayer" /> <span class="dot car"></span> Cars ({{ cars.length }})</label>
-      <label><input v-model="showScooters" type="checkbox" @change="toggleLayer" /> <span class="dot scooter"></span> Scooter docks ({{ scooterDocks.length }})</label>
-      <label><input v-model="showBixi" type="checkbox" @change="toggleLayer" /> <span class="dot bixi"></span> BIXI stations ({{ stations.length }})</label>
-      <label><input v-model="showGarages" type="checkbox" @change="toggleLayer" /> <span class="dot garage"></span> Parking Garages ({{ garages.length }})</label>
+      <label v-if="!auth.isProvider || auth.user?.providerType === 'CAR'"><input v-model="showCars" type="checkbox" @change="toggleLayer" /> <span class="dot car"></span> Cars ({{ cars.length }})</label>
+      <label v-if="!auth.isProvider || auth.user?.providerType === 'SCOOTER'"><input v-model="showScooters" type="checkbox" @change="toggleLayer" /> <span class="dot scooter"></span> Scooter docks ({{ scooterDocks.length }})</label>
+      <label v-if="!auth.isProvider"><input v-model="showBixi" type="checkbox" @change="toggleLayer" /> <span class="dot bixi"></span> BIXI stations ({{ stations.length }})</label>
+      <label v-if="!auth.isProvider"><input v-model="showGarages" type="checkbox" @change="toggleLayer" /> <span class="dot garage"></span> Parking Garages ({{ garages.length }})</label>
     </div>
 
     <div v-if="error" class="state error">{{ error }}</div>

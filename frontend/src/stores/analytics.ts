@@ -50,6 +50,7 @@ export interface ParkingAnalytics {
   totalAvailableInZones: number
   overallUtilizationRate: string
   parkedPerZone: Record<string, number>
+  totalPerZone: Record<string, number>
   occupancyRate: Record<string, string>
   maintenancePerCity: Record<string, number>
 
@@ -107,7 +108,6 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     try {
       const params: Record<string, string> = {}
       if (providerId) params.providerId = providerId
-
       const res = await api.get('/analytics/parking', { params })
       parkingData.value = res.data as ParkingAnalytics
     } catch (e: any) {

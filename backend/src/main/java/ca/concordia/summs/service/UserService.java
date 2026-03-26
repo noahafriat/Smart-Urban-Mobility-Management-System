@@ -18,7 +18,7 @@ public class UserService {
 
     // register new user
     public Map<String, Object> register(String name, String email, String password,
-                                        String roleStr, String phone, String preferredMobilityType) {
+                                        String roleStr, String phone, String providerType) {
         if (userRepository.existsByEmail(email)) {
             throw new IllegalArgumentException("An account with this email already exists.");
         }
@@ -32,9 +32,7 @@ public class UserService {
 
         User user = new User(name, email, password, role);
         if (phone != null && !phone.isBlank()) user.setPhone(phone);
-        if (preferredMobilityType != null && !preferredMobilityType.isBlank()) {
-            user.setPreferredMobilityType(preferredMobilityType);
-        }
+        if (providerType != null && !providerType.isBlank()) user.setProviderType(providerType);
         userRepository.save(user);
 
         return toResponse(user);
@@ -48,8 +46,7 @@ public class UserService {
 
         if (updates.containsKey("name"))                 user.setName(updates.get("name"));
         if (updates.containsKey("phone"))                user.setPhone(updates.get("phone"));
-        if (updates.containsKey("preferredCity"))        user.setPreferredCity(updates.get("preferredCity"));
-        if (updates.containsKey("preferredMobilityType"))user.setPreferredMobilityType(updates.get("preferredMobilityType"));
+        if (updates.containsKey("providerType"))         user.setProviderType(updates.get("providerType"));
         if (updates.containsKey("paymentMethods")) {
              String m = updates.get("paymentMethods");
              if (m != null) {
@@ -107,8 +104,7 @@ public class UserService {
         map.put("email",                user.getEmail());
         map.put("role",                 user.getRole());
         map.put("phone",                user.getPhone());
-        map.put("preferredCity",        user.getPreferredCity());
-        map.put("preferredMobilityType",user.getPreferredMobilityType());
+        map.put("providerType",         user.getProviderType());
         map.put("hasPaymentInfo",       !user.getPaymentMethods().isEmpty());
         map.put("paymentMethods",       user.getPaymentMethods());
         // For compatibility (most recent or first card)

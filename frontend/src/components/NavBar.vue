@@ -20,7 +20,7 @@ function doLogout() {
 
       <div class="nav-links" v-if="auth.isLoggedIn">
         <RouterLink to="/dashboard">Dashboard</RouterLink>
-        <RouterLink v-if="auth.isCitizen" to="/mobility-map">Map</RouterLink>
+        <RouterLink to="/mobility-map">Map</RouterLink>
         <RouterLink v-if="auth.isCitizen" to="/public-transport">Public Transit</RouterLink>
         <RouterLink v-if="auth.isCitizen" to="/vehicles">Search Vehicles</RouterLink>
         <RouterLink v-if="auth.isCitizen" to="/bixi">BIXI Bikes</RouterLink>

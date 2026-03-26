@@ -257,6 +257,7 @@ public class AnalyticsService {
         result.put("totalAvailableInZones", totalAvailable);
         result.put("overallUtilizationRate", Math.round(utilizationRate * 10.0) / 10.0 + "%");
         result.put("parkedPerZone", parkedPerZone);
+        result.put("totalPerZone", totalPerZone);
         result.put("occupancyRate", occupancyRate);
         result.put("maintenancePerCity", maintenancePerCity);
 

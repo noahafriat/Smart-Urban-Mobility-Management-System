@@ -15,6 +15,7 @@ const props = defineProps<{
 }>()
 
 const vehicleStore = useVehicleStore()
+const auth = useAuthStore()
 
 const locationCatalog: Record<'Montreal' | 'Laval', string[]> = {
   Montreal: [
@@ -40,14 +41,12 @@ type ServiceCity = keyof typeof locationCatalog
 
 const serviceCities = Object.keys(locationCatalog) as ServiceCity[]
 
-const authStore = useAuthStore()
-const preferredType = authStore.user?.preferredMobilityType as VehicleType | undefined
-const defaultType = preferredType || 'SCOOTER'
+const defaultType: VehicleType = 'SCOOTER'
 
 const filters = reactive<Required<ProviderFleetFilters>>({
   city: 'All',
   zone: 'All',
-  type: preferredType || 'All',
+  type: (auth.user?.providerType as any) || 'All',
   status: 'All',
   includeHidden: true,
 })
@@ -209,7 +208,7 @@ async function loadFleet() {
 
 function resetForm() {
   editingVehicleId.value = null
-  form.type = defaultType
+  form.type = (auth.user?.providerType as any) || defaultType
   form.vehicleCode = ''
   form.locationCity = 'Montreal'
   form.locationZone = locationCatalog.Montreal[0]!
@@ -307,11 +306,6 @@ async function restoreVehicle(vehicle: Vehicle) {
   }
 }
 
-function relocateVehicle(vehicle: Vehicle) {
-  // Can't auto relocate with strict catalogs via simple prompts easily anymore. 
-  // Let the user know they need to use the Edit panel now since we strictly validate zones.
-  window.alert('Please use the Edit Vehicle form to officially relocate a vehicle to a new dock or zone.')
-}
 
 async function deactivateVehicle(vehicle: Vehicle) {
   const approved = window.confirm(`Retire ${vehicle.vehicleCode} from the fleet?`)
@@ -348,19 +342,14 @@ function vehicleHeading(vehicle: Vehicle) {
 
 <template>
   <section class="fleet-manager">
-    <div class="fleet-topbar">
-      <div>
-        <h2>Fleet Operations</h2>
-        <p>Manage vehicle inventory, availability, maintenance, and search visibility.</p>
-      </div>
-      <div class="topbar-actions">
-        <button class="action-btn secondary" :disabled="vehicleStore.fleetLoading" @click="loadFleet">
-          Refresh
-        </button>
-        <button class="action-btn" @click="openCreateForm">
-          Add Vehicle
-        </button>
-      </div>
+    <!-- Removed redundant topbar -->
+    <div class="actions-summary">
+       <button class="action-btn secondary" :disabled="vehicleStore.fleetLoading" @click="loadFleet">
+         Refresh Fleet
+       </button>
+       <button class="action-btn solid" @click="openCreateForm">
+         Add Vehicle to Inventory
+       </button>
     </div>
 
     <div class="summary-grid">
@@ -382,15 +371,15 @@ function vehicleHeading(vehicle: Vehicle) {
       <article class="summary-card breakdown-card">
         <span class="eyebrow">Fleet Breakdown</span>
         <div class="breakdown-list">
-          <div class="bd-row">
+          <div v-if="!auth.user?.providerType || auth.user.providerType === 'SCOOTER'" class="bd-row">
             <span>Scooters</span>
             <strong>{{ breakdownScooters }}</strong>
           </div>
-          <div class="bd-row clickable" @click="toggleCars">
+          <div v-if="!auth.user?.providerType || auth.user.providerType === 'CAR'" class="bd-row clickable" @click="toggleCars">
             <span>Cars {{ isCarsExpanded ? '▼' : '▶' }}</span>
             <strong>{{ breakdownCarsTotal }}</strong>
           </div>
-          <template v-if="isCarsExpanded">
+          <template v-if="isCarsExpanded && (!auth.user?.providerType || auth.user.providerType === 'CAR')">
             <div v-for="(count, model) in breakdownCarModels" :key="model" class="bd-row sub-row">
               <span>{{ model }}</span>
               <strong>{{ count }}</strong>
@@ -420,12 +409,12 @@ function vehicleHeading(vehicle: Vehicle) {
           <option v-for="zone in filterZoneOptions" :key="zone" :value="zone">{{ zone }}</option>
         </select>
       </label>
-      <label v-if="!preferredType">
+      <label>
         Type
-        <select v-model="filters.type" @change="loadFleet">
+        <select v-model="filters.type" :disabled="!!auth.user?.providerType" @change="loadFleet">
           <option value="All">All types</option>
-          <option value="SCOOTER">Scooter</option>
-          <option value="CAR">Car</option>
+          <option value="SCOOTER">Scooters</option>
+          <option value="CAR">Cars</option>
         </select>
       </label>
       <label>
@@ -445,100 +434,104 @@ function vehicleHeading(vehicle: Vehicle) {
       </label>
     </div>
 
-    <div v-if="showForm" class="modal-backdrop" @click.self="closeForm">
-      <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="vehicle-modal-title">
-        <div class="form-shell">
-          <div class="form-header">
-            <div>
-              <p class="modal-eyebrow">Mobility provider</p>
-              <h3 id="vehicle-modal-title">{{ editingVehicleId ? 'Update Vehicle' : 'Add Vehicle' }}</h3>
+    <Teleport to="body">
+      <div v-if="showForm" class="modal-backdrop" @click.self="closeForm">
+        <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="vehicle-modal-title">
+          <div class="form-shell">
+            <div class="form-header">
+              <div>
+                <p class="modal-eyebrow">Mobility provider access</p>
+                <h3 id="vehicle-modal-title">{{ editingVehicleId ? 'Update Vehicle' : 'Add New Vehicle' }}</h3>
+              </div>
+              <button class="modal-close" type="button" aria-label="Close form" @click="closeForm">×</button>
             </div>
-            <button class="modal-close" type="button" aria-label="Close form" @click="closeForm">x</button>
+            <form class="fleet-form" @submit.prevent="submitForm">
+              <label>
+                Vehicle type
+                <select v-model="form.type" :disabled="!!editingVehicleId || !!auth.user?.providerType">
+                  <option value="SCOOTER">Scooter</option>
+                  <option value="CAR">Car</option>
+                </select>
+              </label>
+              <label v-if="editingVehicleId">
+                Vehicle code
+                <input v-model="form.vehicleCode" disabled class="disabled-input" />
+              </label>
+              <label v-if="form.type === 'CAR'">
+                Make & Model
+                <select v-model="form.model" required>
+                  <option v-for="mod in modelOptions" :key="mod" :value="mod">{{ mod }}</option>
+                </select>
+              </label>
+              <label>
+                City
+                <select v-model="form.locationCity" required>
+                  <option v-for="city in serviceCities" :key="city" :value="city">{{ city }}</option>
+                </select>
+              </label>
+              <label>
+                Zone or station
+                <select v-model="form.locationZone" required>
+                  <option v-for="zone in zoneOptions" :key="zone" :value="zone">{{ zone }}</option>
+                </select>
+              </label>
+              <label>
+                Status
+                <select v-model="form.status">
+                  <option value="AVAILABLE">Available</option>
+                  <option value="RESERVED">Reserved</option>
+                  <option value="RENTED">Rented</option>
+                  <option value="MAINTENANCE">Maintenance</option>
+                  <option value="INACTIVE">Inactive</option>
+                </select>
+              </label>
+              <label>
+                Pricing category
+                <select v-model="form.pricingCategory" required>
+                  <option v-for="cat in pricingOptions" :key="cat" :value="cat">{{ cat }}</option>
+                </select>
+              </label>
+              <div class="price-row">
+                 <label>
+                   Base price
+                   <input v-model.number="form.basePrice" type="number" min="0" step="0.01" required />
+                 </label>
+                 <label>
+                   Price / min
+                   <input v-model.number="form.pricePerMinute" type="number" min="0" step="0.01" required />
+                 </label>
+              </div>
+              <label>
+                Maintenance state
+                <input v-model="form.maintenanceState" required placeholder="READY" />
+              </label>
+              <label v-if="form.type !== 'CAR'">
+                Battery level (%)
+                <input v-model.number="form.batteryLevel" type="number" min="0" max="100" required />
+              </label>
+              <label v-else>
+                Fuel level (%)
+                <input v-model.number="form.fuelLevel" type="number" min="0" max="100" required />
+              </label>
+              <label v-if="form.type === 'CAR'">
+                License plate
+                <input v-model="form.licensePlate" placeholder="ABC 123" />
+              </label>
+              <label class="checkbox">
+                <input v-model="form.visibleInSearch" type="checkbox" />
+                <span>Visible in customer search</span>
+              </label>
+              <div class="form-actions">
+                <button class="action-btn secondary" type="button" @click="closeForm">Discard</button>
+                <button class="action-btn solid" :disabled="vehicleStore.fleetSaving" type="submit">
+                  {{ editingVehicleId ? 'Save Specification' : 'Add Vehicle' }}
+                </button>
+              </div>
+            </form>
           </div>
-          <form class="fleet-form" @submit.prevent="submitForm">
-            <label v-if="!preferredType">
-              Vehicle type
-              <select v-model="form.type" :disabled="!!editingVehicleId">
-                <option value="SCOOTER">Scooter</option>
-                <option value="CAR">Car</option>
-              </select>
-            </label>
-            <label v-if="editingVehicleId">
-              Vehicle code
-              <input v-model="form.vehicleCode" disabled class="disabled-input" />
-            </label>
-            <label v-if="form.type === 'CAR'">
-              Make & Model
-              <select v-model="form.model" required>
-                <option v-for="mod in modelOptions" :key="mod" :value="mod">{{ mod }}</option>
-              </select>
-            </label>
-            <label>
-              City
-              <select v-model="form.locationCity" required>
-                <option v-for="city in serviceCities" :key="city" :value="city">{{ city }}</option>
-              </select>
-            </label>
-            <label>
-              Zone or station
-              <select v-model="form.locationZone" required>
-                <option v-for="zone in zoneOptions" :key="zone" :value="zone">{{ zone }}</option>
-              </select>
-            </label>
-            <label>
-              Status
-              <select v-model="form.status">
-                <option value="AVAILABLE">Available</option>
-                <option value="RESERVED">Reserved</option>
-                <option value="RENTED">Rented</option>
-                <option value="MAINTENANCE">Maintenance</option>
-                <option value="INACTIVE">Inactive</option>
-              </select>
-            </label>
-            <label>
-              Pricing category
-              <select v-model="form.pricingCategory" required>
-                <option v-for="cat in pricingOptions" :key="cat" :value="cat">{{ cat }}</option>
-              </select>
-            </label>
-            <label>
-              Base price
-              <input v-model.number="form.basePrice" type="number" min="0" step="0.01" required />
-            </label>
-            <label>
-              Price per minute
-              <input v-model.number="form.pricePerMinute" type="number" min="0" step="0.01" required />
-            </label>
-            <label>
-              Maintenance state
-              <input v-model="form.maintenanceState" required placeholder="READY" />
-            </label>
-            <label v-if="form.type !== 'CAR'">
-              Battery level
-              <input v-model.number="form.batteryLevel" type="number" min="0" max="100" required />
-            </label>
-            <label v-else>
-              Fuel level
-              <input v-model.number="form.fuelLevel" type="number" min="0" max="100" required />
-            </label>
-            <label v-if="form.type === 'CAR'">
-              License plate
-              <input v-model="form.licensePlate" placeholder="ABC 123" />
-            </label>
-            <label class="checkbox">
-              <input v-model="form.visibleInSearch" type="checkbox" />
-              Visible in customer search
-            </label>
-            <div class="form-actions">
-              <button class="action-btn secondary" type="button" @click="closeForm">Cancel</button>
-              <button class="action-btn" :disabled="vehicleStore.fleetSaving" type="submit">
-                {{ editingVehicleId ? 'Save Changes' : 'Create Vehicle' }}
-              </button>
-            </div>
-          </form>
         </div>
       </div>
-    </div>
+    </Teleport>
 
     <div v-if="vehicleStore.fleetError" class="state-msg error">{{ vehicleStore.fleetError }}</div>
     <div v-else-if="vehicleStore.fleetLoading" class="state-msg">Loading fleet data...</div>
@@ -586,7 +579,6 @@ function vehicleHeading(vehicle: Vehicle) {
 
         <div class="card-actions">
           <button class="text-btn action-edit" @click="openEditForm(vehicle)">Edit</button>
-          <button class="text-btn action-relocate" @click="relocateVehicle(vehicle)">Relocate</button>
           <button
             v-if="vehicle.status !== 'MAINTENANCE' && vehicle.status !== 'INACTIVE'"
             class="text-btn warning action-maintenance"
@@ -643,10 +635,16 @@ function vehicleHeading(vehicle: Vehicle) {
   color: #5f6c7b;
 }
 
-.topbar-actions {
+.actions-summary {
   display: flex;
-  gap: 0.75rem;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
 }
+.actions-summary .action-btn { flex: 0 0 auto; width: auto; font-size: 0.9rem; padding: 0.75rem 1.5rem; }
+.action-btn.solid { background: #3b82f6; color: white; }
+.action-btn.solid:hover { background: #2563eb; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
+
+.price-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 
 .summary-grid {
   display: grid;
