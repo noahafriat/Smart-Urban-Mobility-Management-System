@@ -41,8 +41,9 @@ public class AnalyticsController {
      */
     @GetMapping("/rentals")
     public ResponseEntity<Object> getRentalAnalytics(
-            @RequestParam(required = false) String providerId) {
-        return ResponseEntity.ok(analyticsService.getRentalAnalytics(providerId));
+            @RequestParam(required = false) String providerId,
+            @RequestParam(required = false) String userId) {
+        return ResponseEntity.ok(analyticsService.getRentalAnalytics(providerId, userId));
     }
 
     /**

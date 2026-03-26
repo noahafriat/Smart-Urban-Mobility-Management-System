@@ -125,12 +125,18 @@ public class AnalyticsService {
      * - System/City Admin → sees all providers' data
      * - Provider → restricted to their own fleet and rentals only
      */
-    public Map<String, Object> getRentalAnalytics(String providerId) {
-        boolean isGlobal = (providerId == null || providerId.isBlank());
+    /**
+     * @param providerId optional — when set, only rentals for that provider's fleet
+     * @param userId     optional — when set, only rentals booked by that user
+     */
+    public Map<String, Object> getRentalAnalytics(String providerId, String userId) {
+        boolean providerScoped = providerId != null && !providerId.isBlank();
+        boolean userScoped = userId != null && !userId.isBlank();
 
         List<Rental> allRentals = rentalRepository.findAll();
-        List<Rental> scope = isGlobal ? allRentals : allRentals.stream()
-                .filter(r -> r.getVehicle().getProviderId().equalsIgnoreCase(providerId))
+        List<Rental> scope = allRentals.stream()
+                .filter(r -> !providerScoped || r.getVehicle().getProviderId().equalsIgnoreCase(providerId))
+                .filter(r -> !userScoped || r.getUserId().equals(userId))
                 .toList();
 
         List<Rental> finished = scope.stream()
@@ -139,6 +145,10 @@ public class AnalyticsService {
 
         long totalRentals = scope.size();
         long activeRentals = scope.stream().filter(r -> r.getStatus() == RentalStatus.ACTIVE).count();
+
+        long fleetSize = vehicleRepository.findAll().stream()
+                .filter(v -> !providerScoped || v.getProviderId().equalsIgnoreCase(providerId))
+                .count();
         long completedRentals = finished.size();
         long paidRentals = scope.stream().filter(r -> r.getStatus() == RentalStatus.PAID).count();
         double totalRevenue = finished.stream().mapToDouble(Rental::getTotalCost).sum();
@@ -171,10 +181,22 @@ public class AnalyticsService {
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue,
                         (a, b) -> a, LinkedHashMap::new));
 
+        String scopeLabel;
+        if (!providerScoped && !userScoped) {
+            scopeLabel = "platform";
+        } else if (providerScoped && userScoped) {
+            scopeLabel = "provider:" + providerId + "+user:" + userId;
+        } else if (providerScoped) {
+            scopeLabel = "provider:" + providerId;
+        } else {
+            scopeLabel = "user:" + userId;
+        }
+
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("scope", isGlobal ? "platform" : "provider:" + providerId);
+        result.put("scope", scopeLabel);
         result.put("totalRentals", totalRentals);
         result.put("activeRentals", activeRentals);
+        result.put("fleetSize", fleetSize);
         result.put("completedRentals", completedRentals);
         result.put("paidRentals", paidRentals);
         result.put("totalRevenue", Math.round(totalRevenue * 100.0) / 100.0);
@@ -190,10 +212,10 @@ public class AnalyticsService {
      * Models parking-zone utilization via vehicle locations as a proxy.
      */
     public Map<String, Object> getParkingAnalytics(String providerId) {
-        boolean isGlobal = (providerId == null || providerId.isBlank());
-        List<Vehicle> allVehicles = vehicleRepository.findAll();
-        List<Vehicle> fleet = isGlobal ? allVehicles : allVehicles.stream()
-                .filter(v -> v.getProviderId().equalsIgnoreCase(providerId))
+        boolean providerScoped = providerId != null && !providerId.isBlank();
+
+        List<Vehicle> fleet = vehicleRepository.findAll().stream()
+                .filter(v -> !providerScoped || v.getProviderId().equalsIgnoreCase(providerId))
                 .toList();
 
         // Vehicles parked (= available) per zone
@@ -243,7 +265,7 @@ public class AnalyticsService {
         result.put("totalPerZone", totalPerZone);
         result.put("occupancyRate", occupancyRate);
         result.put("maintenancePerCity", maintenancePerCity);
-
+        result.put("utilizationRate", Math.round(utilizationRate * 10.0) / 10.0 + "%"); // Added this line
         result.put("totalGarages", totalGarages);
         result.put("totalGarageSpaces", totalGarageSpaces);
         result.put("totalAvailableGarageSpaces", availableGarageSpaces);

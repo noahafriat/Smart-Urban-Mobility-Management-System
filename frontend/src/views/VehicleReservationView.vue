@@ -71,6 +71,11 @@ async function startReservation() {
       savePaymentMethod: isNewCard && savePaymentMethod.value,
     })
     
+    // Refresh user's saved wallets if new card was cached
+    if (isNewCard && savePaymentMethod.value) {
+      await authStore.fetchUserProfile(authStore.user.id)
+    }
+    
     // Redirect to activity feed
     router.push('/rentals')
   } catch (error: any) {
@@ -180,8 +185,8 @@ async function startReservation() {
               </select>
             </div>
             <div class="form-row">
-              <label>Full Holder Name</label>
-              <input v-model="cardholderName" placeholder="Alex Morgan" />
+              <label>Full Name</label>
+              <input v-model="cardholderName" />
             </div>
             <div class="form-row">
               <label>Account Number</label>
@@ -192,11 +197,11 @@ async function startReservation() {
                   <label>Expiry</label>
                   <div class="dual-input">
                     <input v-model="expiryMonth" placeholder="MM" maxlength="2" />
-                    <input v-model="expiryYear" placeholder="YY" maxlength="2" />
+                    <input v-model="expiryYear" placeholder="YYYY" maxlength="4" />
                   </div>
                </div>
                <div class="form-row">
-                  <label>CVV/CVC</label>
+                  <label>CVV</label>
                   <input v-model="cvv" type="password" placeholder="***" maxlength="3" />
                </div>
             </div>

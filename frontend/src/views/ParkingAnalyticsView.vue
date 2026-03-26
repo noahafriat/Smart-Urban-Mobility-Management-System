@@ -3,10 +3,14 @@
  * Parking & Infrastructure Analytics (Stationary only)
  * Visible to: City Admin, System Admin
  */
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useAnalyticsStore } from '../stores/analytics'
 
 const store = useAnalyticsStore()
+
+function formatZoneName(raw: string): string {
+  return raw.split(' / ').pop() || raw
+}
 
 function availabilityColor(available: number, total: number): string {
   const percent = (available / total) * 100
@@ -14,6 +18,12 @@ function availabilityColor(available: number, total: number): string {
   if (percent > 15) return 'orange'
   return 'red'
 }
+
+function barPct(value: number, max: number): number {
+  if (!max || !Number.isFinite(max)) return 0
+  return Math.min(100, (value / max) * 100)
+}
+
 
 onMounted(() => {
   store.fetchParking()
@@ -29,8 +39,9 @@ onMounted(() => {
         <p>Real-time monitoring and capacity analysis of formal parking facilities and garages.</p>
       </div>
       <div class="header-actions">
-        <button class="btn-refresh" @click="store.fetchParking()" :disabled="store.loading">
-          {{ store.loading ? 'Syncing...' : '↻ Full Infrastructure Audit' }}
+        <button class="btn-refresh" :disabled="store.loading" @click="store.fetchParking()">
+          <span v-if="store.loading">Refreshing...</span>
+          <span v-else>↻ Sync Sensors</span>
         </button>
       </div>
     </header>
@@ -68,7 +79,7 @@ onMounted(() => {
         <div class="ops-column">
           <section class="panel-card-clean">
             <div class="panel-header">
-              <h3>Facility Capacity Matrix</h3>
+                <h3>Facility Capacity</h3>
               <p>Live occupancy states for all connected parking nodes.</p>
             </div>
             <div class="garage-list-clean">
@@ -86,28 +97,6 @@ onMounted(() => {
           </section>
         </div>
 
-        <!-- ── Facility Summary ── -->
-        <div class="side-column">
-          <section class="panel-card-clean highlight">
-            <h3>Infrastructure Health</h3>
-            <div class="brief-list">
-              <div class="brief-item">
-                <span class="l">Monitored Facilities</span>
-                <strong class="v">{{ store.parkingData.garageDetails.length }}</strong>
-              </div>
-              <div class="brief-item">
-                <span class="l">Critical Loads</span>
-                <strong class="v" :class="{ 'red-text': store.parkingData.garageDetails.some(g => (g.availableSpaces/g.totalSpaces) < 0.1) }">
-                  {{ store.parkingData.garageDetails.filter(g => (g.availableSpaces/g.totalSpaces) < 0.1).length }}
-                </strong>
-              </div>
-              <div class="brief-item">
-                <span class="l">Sensor Status</span>
-                <strong class="v green-text">Online</strong>
-              </div>
-            </div>
-          </section>
-        </div>
       </div>
     </main>
   </div>
@@ -127,8 +116,27 @@ onMounted(() => {
 .header-main p { color: #64748b; font-size: 1rem; margin: 0; }
 .view-tag { font-size: 0.7rem; font-weight: 700; color: #3b82f6; text-transform: uppercase; margin-bottom: 0.5rem; display: block; }
 
-.btn-refresh { padding: 0.6rem 1.25rem; font-size: 0.9rem; font-weight: 600; border: 1px solid #e2e8f0; border-radius: 8px; background: white; cursor: pointer; transition: 0.2s; }
-.btn-refresh:hover { background: #f8fafc; }
+.header-actions { display: flex; align-items: center; }
+
+.btn-refresh {
+  padding: 0.6rem 1.25rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.btn-refresh:hover:not(:disabled) {
+  background: #f8fafc;
+}
+
+.btn-refresh:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 
 /* ── KPIs ── */
 .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 3rem; }
@@ -138,7 +146,7 @@ onMounted(() => {
 .kpi-card-simple .subtext { font-size: 0.8rem; color: #94a3b8; }
 
 /* ── Layout ── */
-.main-grid { display: grid; grid-template-columns: 1fr 340px; gap: 2rem; }
+.main-grid { display: grid; grid-template-columns: 1fr; gap: 2rem; }
 .panel-card-clean { padding: 1.5rem; border: 1px solid #f1f5f9; border-radius: 12px; margin-bottom: 1.5rem; background: #fff; }
 .panel-card-clean h3 { font-size: 1.1rem; font-weight: 700; color: #0f172a; margin: 0 0 1.25rem; }
 .panel-card-clean p { font-size: 0.9rem; color: #64748b; margin: -1rem 0 1.5rem; }
@@ -155,20 +163,63 @@ onMounted(() => {
 .load-badge.orange { background: #fffbeb; color: #f59e0b; }
 .load-badge.red { background: #fef2f2; color: #ef4444; }
 
-/* ── Sidebar ── */
-.brief-list { display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem; }
-.brief-item { display: flex; justify-content: space-between; font-size: 0.95rem; }
-.brief-item .l { color: #64748b; }
-.brief-item .v { font-weight: 700; color: #0f172a; }
-.green-text { color: #10b981; }
-.red-text { color: #ef4444; }
-
-.panel-card-clean.highlight { background: #f8fafc; border-color: #e2e8f0; }
-
 .state-msg { text-align: center; padding: 5rem; color: #64748b; }
 .empty-state { text-align: center; padding: 2rem; color: #94a3b8; font-style: italic; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 .pulse { animation: pulse 2s infinite; }
+
+/* ── Bar charts ── */
+.bar-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.bar-row {
+  display: grid;
+  grid-template-columns: minmax(0, 120px) 1fr auto;
+  gap: 0.65rem;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.bar-label {
+  color: #475569;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bar-track {
+  height: 10px;
+  background: #f1f5f9;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.35s ease;
+  min-width: 2px;
+}
+
+.bar-availability {
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+}
+
+.bar-maintenance {
+  background: linear-gradient(90deg, #ef4444, #fb7185);
+}
+
+.bar-value {
+  font-weight: 700;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+  min-width: 2.5rem;
+  text-align: right;
+}
 
 @media (max-width: 1024px) {
   .main-grid { grid-template-columns: 1fr; }

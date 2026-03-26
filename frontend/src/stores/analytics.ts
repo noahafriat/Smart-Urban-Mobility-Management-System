@@ -37,6 +37,7 @@ export interface RentalAnalytics {
   activeRentals: number
   completedRentals: number
   paidRentals: number
+  fleetSize: number
   totalRevenue: number
   revenueByType: Record<string, number>
   rentalsByType: Record<string, number>
@@ -86,11 +87,13 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     }
   }
 
-  async function fetchRentals(providerId?: string) {
+  async function fetchRentals(providerId?: string, userId?: string) {
     loading.value = true
     error.value = null
     try {
-      const params = providerId ? { providerId } : {}
+      const params: Record<string, string> = {}
+      if (providerId) params.providerId = providerId
+      if (userId) params.userId = userId
       const res = await api.get('/analytics/rentals', { params })
       rentalData.value = res.data as RentalAnalytics
     } catch (e: any) {
@@ -104,7 +107,8 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     loading.value = true
     error.value = null
     try {
-      const params = providerId ? { providerId } : {}
+      const params: Record<string, string> = {}
+      if (providerId) params.providerId = providerId
       const res = await api.get('/analytics/parking', { params })
       parkingData.value = res.data as ParkingAnalytics
     } catch (e: any) {
