@@ -139,12 +139,6 @@ function barPct(value: number, max: number): number {
   return Math.min(100, (value / max) * 100)
 }
 
-function zoneCapacity(count: number, rateStr: string): number {
-  if (!rateStr) return count
-  const rate = parseInt(rateStr.replace('%', ''))
-  if (rate === 0) return count || 100
-  return Math.round(count / (rate / 100))
-}
 
 function formatZoneName(raw: string): string {
   return raw.split(' / ').pop() || raw
@@ -260,11 +254,16 @@ onMounted(async () => {
     <header class="page-header">
       <div class="header-main">
         <div class="scope-header">
-          <span class="view-tag">Market Intelligence</span>
           <span class="scope-pill provider">{{ auth.isProvider ? 'Your fleet' : 'Multi-provider' }}</span>
         </div>
         <h1>Rental Analytics & Revenue</h1>
         <p>Rental volume, revenue, and geography — filter by provider or view the full platform.</p>
+      </div>
+      <div class="header-actions">
+        <button class="btn-refresh" :disabled="store.loading" @click="refreshRentals()">
+          <span v-if="store.loading">Refreshing...</span>
+          <span v-else>↻ Sync Fleet</span>
+        </button>
       </div>
     </header>
 
@@ -346,9 +345,9 @@ onMounted(async () => {
             <span class="subtext">From finished trips in scope</span>
           </div>
           <div class="kpi-card-simple">
-            <span class="label">Active share</span>
-            <strong class="value">{{ ((store.rentalData.activeRentals / (store.rentalData.totalRentals || 1)) * 100).toFixed(1) }}%</strong>
-            <span class="subtext">Of scoped rental records</span>
+            <span class="label">Fleet Activity</span>
+            <strong class="value">{{ ((store.rentalData.activeRentals / (store.rentalData.fleetSize || 1)) * 100).toFixed(1) }}%</strong>
+            <span class="subtext">Of active fleet in scope</span>
           </div>
           <div class="kpi-card-simple">
             <span class="label">Billing rate</span>
@@ -452,7 +451,7 @@ onMounted(async () => {
             <div v-for="[zone, count] in filteredParkedPerZoneEntries" :key="zone" class="clean-row">
               <span class="name">{{ formatZoneName(zone) }}</span>
               <strong class="qty">
-                {{ count }} / {{ zoneCapacity(count, store.parkingData.occupancyRate[zone] ?? '') }} available
+                {{ count }} / {{ store.parkingData.totalPerZone[zone] }} available
               </strong>
             </div>
             <div v-if="filteredParkedPerZoneEntries.length === 0" class="empty-state">

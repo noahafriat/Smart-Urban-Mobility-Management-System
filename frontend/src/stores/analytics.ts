@@ -37,6 +37,7 @@ export interface RentalAnalytics {
   activeRentals: number
   completedRentals: number
   paidRentals: number
+  fleetSize: number
   totalRevenue: number
   revenueByType: Record<string, number>
   rentalsByType: Record<string, number>

@@ -5,6 +5,7 @@
  */
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
+import SettingsCard from '../components/SettingsCard.vue'
 
 const auth = useAuthStore()
 
@@ -14,16 +15,7 @@ const profile = ref({
   email: '',
 })
 
-// Full Card Form State
-const cardDetails = ref({
-  type: 'VISA',
-  holder: '',
-  number: '',
-  expiryMonth: '',
-  expiryYear: '',
-  cvv: ''
-})
-
+// Success/Error Messages
 const successMsg = ref('')
 
 onMounted(() => {
@@ -40,22 +32,18 @@ async function handleUpdateProfile() {
   try {
     await auth.updateProfile({ ...profile.value })
     showSuccess('Profile updated successfully.')
-  } catch (e) {
-    // Error
+  } catch (e: any) {
+    // Error logged in auth store
   }
 }
 
-async function handleAddCard() {
-  const { type, holder, number, expiryMonth, expiryYear, cvv } = cardDetails.value
-  if (!holder || !number || !expiryMonth || !expiryYear || !cvv) {
-    alert('Please fill out all card details.')
-    return
-  }
-
-  // Ensure 16 digits
+async function handleAddCard(payload: { type: string, holder: string, number: string, expiryMonth: string, expiryYear: string, cvv: string, save: boolean }) {
+  const { type, number } = payload
+  
+  // Basic validation and formatting
   const cleanNumber = number.replace(/\D/g, '')
   if (cleanNumber.length < 4) {
-     alert('Check your card number.')
+     alert('Invalid card number.')
      return
   }
 
@@ -72,12 +60,9 @@ async function handleAddCard() {
   const updatedMethods = [...currentMethods, cardLabel]
   try {
     await auth.updateProfile({ paymentMethods: updatedMethods.join(',') })
-    
-    // Reset form
-    cardDetails.value = { type: 'VISA', holder: '', number: '', expiryMonth: '', expiryYear: '', cvv: '' }
     showSuccess('Card registered successfully.')
-  } catch (e) {
-    // Error
+  } catch (e: any) {
+    // Error logged in auth store
   }
 }
 
@@ -101,7 +86,7 @@ function showSuccess(msg: string) {
 <template>
   <div class="settings-view fade-in">
     <header class="page-header">
-      <span class="view-tag">Identity & Finance</span>
+      <span class="view-tag">Profile & Finance</span>
       <h1>Citizen Settings</h1>
     </header>
 
@@ -113,20 +98,20 @@ function showSuccess(msg: string) {
       <section class="settings-card">
         <header class="card-header">
           <h2>Personal Profile</h2>
-          <p>Update your contact info and travel preferences.</p>
+          <p>Update your contact info.</p>
         </header>
         
         <form @submit.prevent="handleUpdateProfile" class="modern-form">
           <div class="form-group">
-            <label>Legal Full Name</label>
+            <label>Full Name</label>
             <input v-model="profile.name" placeholder="John Doe" required />
           </div>
           <div class="form-group">
-            <label>Email ID</label>
+            <label>Email</label>
             <input v-model="profile.email" type="email" placeholder="john@example.com" required />
           </div>
           <div class="form-group">
-            <label>Mobile Number</label>
+            <label>Phone Number</label>
             <input v-model="profile.phone" placeholder="+1..." />
           </div>
           <button type="submit" :disabled="auth.loading" class="btn-save">
@@ -136,10 +121,10 @@ function showSuccess(msg: string) {
       </section>
 
       <!-- ── Payments Section ── -->
-      <section class="settings-card">
+      <section class="wallet-section">
         <header class="card-header">
           <h2>Digital Wallet</h2>
-          <br/>
+          <p>Managed linked payment methods.</p>
         </header>
 
         <div class="payment-list">
@@ -155,48 +140,7 @@ function showSuccess(msg: string) {
           </div>
         </div>
 
-        <div class="add-method-pane">
-          <h3>Add New Payment Method</h3>
-          
-          <div class="form-row">
-            <label>Card Issuer Network</label>
-            <select v-model="cardDetails.type">
-              <option value="VISA">VISA</option>
-              <option value="MASTERCARD">Mastercard</option>
-              <option value="AMEX">American Express</option>
-              <option value="OTHER">Other</option>
-            </select>
-          </div>
-
-          <div class="form-row">
-            <label>Cardholder Signature Name</label>
-            <input v-model="cardDetails.holder" placeholder="Enter full name" />
-          </div>
-
-          <div class="form-row">
-            <label>Account Number</label>
-            <input v-model="cardDetails.number" placeholder="4539 **** **** ****" />
-          </div>
-
-          <div class="form-grid-3">
-             <div class="form-row">
-                <label>Month</label>
-                <input v-model="cardDetails.expiryMonth" placeholder="MM" maxlength="2" />
-             </div>
-             <div class="form-row">
-                <label>Year</label>
-                <input v-model="cardDetails.expiryYear" placeholder="YY" maxlength="2" />
-             </div>
-             <div class="form-row">
-                <label>CVV/CVC</label>
-                <input v-model="cardDetails.cvv" type="password" placeholder="***" maxlength="3" />
-             </div>
-          </div>
-
-          <button @click="handleAddCard" :disabled="auth.loading" class="btn-add">
-            {{ auth.loading ? '...' : 'Register Secure Card' }}
-          </button>
-        </div>
+        <SettingsCard :loading="auth.loading" @add-card="handleAddCard" />
       </section>
     </div>
   </div>

@@ -24,33 +24,6 @@ function barPct(value: number, max: number): number {
   return Math.min(100, (value / max) * 100)
 }
 
-const zoneAvailabilityRows = computed(() => {
-  const data = store.parkingData
-  if (!data) return []
-
-  const parkedPerZone = data.parkedPerZone ?? {}
-  return Object.entries(parkedPerZone)
-    .map(([zone, count]) => ({ zone, count }))
-    .sort((a, b) => b.count - a.count)
-})
-
-const maxZoneAvailability = computed(() => {
-  return zoneAvailabilityRows.value.reduce((m, r) => Math.max(m, r.count), 0)
-})
-
-const maintenanceCityRows = computed(() => {
-  const data = store.parkingData
-  if (!data) return []
-
-  const map = data.maintenancePerCity ?? {}
-  return Object.entries(map)
-    .map(([city, count]) => ({ city, count }))
-    .sort((a, b) => b.count - a.count)
-})
-
-const maxMaintenanceCity = computed(() => {
-  return maintenanceCityRows.value.reduce((m, r) => Math.max(m, r.count), 0)
-})
 
 onMounted(() => {
   store.fetchParking()
@@ -64,6 +37,12 @@ onMounted(() => {
         <span class="view-tag">Infrastructure Oversight</span>
         <h1>Stationary Parking Infrastructure</h1>
         <p>Real-time monitoring and capacity analysis of formal parking facilities and garages.</p>
+      </div>
+      <div class="header-actions">
+        <button class="btn-refresh" :disabled="store.loading" @click="store.fetchParking()">
+          <span v-if="store.loading">Refreshing...</span>
+          <span v-else>↻ Sync Sensors</span>
+        </button>
       </div>
     </header>
 
@@ -118,55 +97,6 @@ onMounted(() => {
           </section>
         </div>
 
-        <!-- ── Added Parking Insights ── -->
-        <div class="side-column">
-          <section class="panel-card-clean">
-            <div class="panel-header">
-              <h3>Top zones by availability</h3>
-            </div>
-            <div v-if="zoneAvailabilityRows.length === 0" class="empty-state">No zone availability data.</div>
-            <div v-else class="bar-chart">
-              <div
-                v-for="row in zoneAvailabilityRows.slice(0, 7)"
-                :key="row.zone"
-                class="bar-row"
-              >
-                <span class="bar-label" :title="row.zone">{{ formatZoneName(row.zone) }}</span>
-                <div class="bar-track">
-                  <div
-                    class="bar-fill bar-availability"
-                    :style="{ width: barPct(row.count, maxZoneAvailability) + '%' }"
-                  />
-                </div>
-                <span class="bar-value">{{ row.count }}</span>
-              </div>
-            </div>
-          </section>
-
-          <section class="panel-card-clean">
-            <div class="panel-header">
-              <h3>Maintenance by city</h3>
-              <p>Counts of vehicles currently in maintenance for each city.</p>
-            </div>
-            <div v-if="maintenanceCityRows.length === 0" class="empty-state">No maintenance data.</div>
-            <div v-else class="bar-chart">
-              <div
-                v-for="row in maintenanceCityRows.slice(0, 7)"
-                :key="row.city"
-                class="bar-row"
-              >
-                <span class="bar-label" :title="row.city">{{ row.city }}</span>
-                <div class="bar-track">
-                  <div
-                    class="bar-fill bar-maintenance"
-                    :style="{ width: barPct(row.count, maxMaintenanceCity) + '%' }"
-                  />
-                </div>
-                <span class="bar-value">{{ row.count }}</span>
-              </div>
-            </div>
-          </section>
-        </div>
       </div>
     </main>
   </div>
@@ -186,7 +116,27 @@ onMounted(() => {
 .header-main p { color: #64748b; font-size: 1rem; margin: 0; }
 .view-tag { font-size: 0.7rem; font-weight: 700; color: #3b82f6; text-transform: uppercase; margin-bottom: 0.5rem; display: block; }
 
-.btn-refresh { display: none; }
+.header-actions { display: flex; align-items: center; }
+
+.btn-refresh {
+  padding: 0.6rem 1.25rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.btn-refresh:hover:not(:disabled) {
+  background: #f8fafc;
+}
+
+.btn-refresh:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 
 /* ── KPIs ── */
 .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 3rem; }
@@ -196,7 +146,7 @@ onMounted(() => {
 .kpi-card-simple .subtext { font-size: 0.8rem; color: #94a3b8; }
 
 /* ── Layout ── */
-.main-grid { display: grid; grid-template-columns: 1fr 340px; gap: 2rem; }
+.main-grid { display: grid; grid-template-columns: 1fr; gap: 2rem; }
 .panel-card-clean { padding: 1.5rem; border: 1px solid #f1f5f9; border-radius: 12px; margin-bottom: 1.5rem; background: #fff; }
 .panel-card-clean h3 { font-size: 1.1rem; font-weight: 700; color: #0f172a; margin: 0 0 1.25rem; }
 .panel-card-clean p { font-size: 0.9rem; color: #64748b; margin: -1rem 0 1.5rem; }

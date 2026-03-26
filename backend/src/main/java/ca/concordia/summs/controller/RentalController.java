@@ -16,13 +16,15 @@ public class RentalController {
     }
 
     @PostMapping("/reserve")
-    public ResponseEntity<Object> reserve(@RequestBody Map<String, String> body) {
+    public ResponseEntity<Object> reserve(@RequestBody Map<String, Object> body) {
         try {
-            boolean savePaymentMethod = Boolean.parseBoolean(body.getOrDefault("savePaymentMethod", "false"));
+            String saveStr = String.valueOf(body.getOrDefault("savePaymentMethod", "false"));
+            boolean savePaymentMethod = Boolean.parseBoolean(saveStr);
+            
             return ResponseEntity.ok(rentalService.reserveVehicle(
-                    body.get("userId"),
-                    body.get("vehicleId"),
-                    body.get("paymentInfo"),
+                    (String) body.get("userId"),
+                    (String) body.get("vehicleId"),
+                    (String) body.get("paymentInfo"),
                     savePaymentMethod));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));

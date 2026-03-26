@@ -65,6 +65,12 @@ onMounted(() => {
         <h1>Transit Analytics</h1>
         <p>A cleaner snapshot of ridership, fleet status, revenue, and gateway health.</p>
       </div>
+      <div class="header-actions">
+        <button class="btn-refresh" :disabled="store.loading" @click="() => { store.fetchTransit(); store.fetchGateway(); }">
+          <span v-if="store.loading">Refreshing...</span>
+          <span v-else>↻ Sync Data</span>
+        </button>
+      </div>
     </header>
 
     <div v-if="store.loading && !store.transitData" class="state-msg pulse">
@@ -215,6 +221,28 @@ onMounted(() => {
 .header-main h1 { font-size: 2rem; font-weight: 800; color: #0f172a; margin: 0 0 0.5rem; letter-spacing: -0.02em; }
 .header-main p { color: #64748b; font-size: 1rem; margin: 0; }
 .view-tag { font-size: 0.7rem; font-weight: 700; color: #3b82f6; text-transform: uppercase; margin-bottom: 0.5rem; display: block; }
+
+.header-actions { display: flex; align-items: center; }
+
+.btn-refresh {
+  padding: 0.6rem 1.25rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.btn-refresh:hover:not(:disabled) {
+  background: #f8fafc;
+}
+
+.btn-refresh:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 
 /* ── KPIs ── */
 .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.25rem; margin-bottom: 1.5rem; }

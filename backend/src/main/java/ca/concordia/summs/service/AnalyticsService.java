@@ -145,6 +145,10 @@ public class AnalyticsService {
 
         long totalRentals = scope.size();
         long activeRentals = scope.stream().filter(r -> r.getStatus() == RentalStatus.ACTIVE).count();
+
+        long fleetSize = vehicleRepository.findAll().stream()
+                .filter(v -> !providerScoped || v.getProviderId().equalsIgnoreCase(providerId))
+                .count();
         long completedRentals = finished.size();
         long paidRentals = scope.stream().filter(r -> r.getStatus() == RentalStatus.PAID).count();
         double totalRevenue = finished.stream().mapToDouble(Rental::getTotalCost).sum();
@@ -192,6 +196,7 @@ public class AnalyticsService {
         result.put("scope", scopeLabel);
         result.put("totalRentals", totalRentals);
         result.put("activeRentals", activeRentals);
+        result.put("fleetSize", fleetSize);
         result.put("completedRentals", completedRentals);
         result.put("paidRentals", paidRentals);
         result.put("totalRevenue", Math.round(totalRevenue * 100.0) / 100.0);
@@ -260,7 +265,7 @@ public class AnalyticsService {
         result.put("totalPerZone", totalPerZone);
         result.put("occupancyRate", occupancyRate);
         result.put("maintenancePerCity", maintenancePerCity);
-
+        result.put("utilizationRate", Math.round(utilizationRate * 10.0) / 10.0 + "%"); // Added this line
         result.put("totalGarages", totalGarages);
         result.put("totalGarageSpaces", totalGarageSpaces);
         result.put("totalAvailableGarageSpaces", availableGarageSpaces);

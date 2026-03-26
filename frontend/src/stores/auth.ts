@@ -73,6 +73,15 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function fetchUserProfile(userId: string) {
+    try {
+      const res = await api.get(`/users/${userId}/profile`)
+      user.value = res.data as User
+    } catch {
+      // Sliently fail if profile fetch or user is invalid
+    }
+  }
+
   // Logout
   function logout() {
     user.value = null
@@ -82,6 +91,6 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     user, error, loading,
     isLoggedIn, isProvider, isAdmin, isCitizen, isSysAdmin,
-    register, login, logout, updateProfile,
+    register, login, logout, updateProfile, fetchUserProfile,
   }
 })
