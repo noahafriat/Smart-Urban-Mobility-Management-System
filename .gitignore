@@ -1,0 +1,18 @@
+# --- Secrets & local configuration (never commit real keys) ---
+frontend/.env
+backend/.env
+.env
+.env.local
+.env.*.local
+# Allow tracked templates only:
+!.env.example
+!**/.env.example
+
+# Spring Boot local overrides (often hold passwords / API keys)
+backend/src/main/resources/application-local.properties
+**/application-local.properties
+
+# Keys / certs (if you add them)
+*.pem
+*.p12
+*.pfx
