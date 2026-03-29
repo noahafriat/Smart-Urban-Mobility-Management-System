@@ -90,12 +90,12 @@ const auth = useAuthStore()
         <header class="card-header">
           <div class="icon-box">🚍</div>
           <div class="header-text">
-            <h2>Public Transit</h2>
-            <p>Real-time route-planning across the city using public transit.</p>
+            <h2>STM &amp; transit</h2>
+            <p>Trip planner, official STM metro and bus schedules, and service alerts.</p>
           </div>
         </header>
         <div class="card-footer">
-          <RouterLink to="/public-transport" class="action-btn" style="background: #3b82f6;">View Schedules</RouterLink>
+          <RouterLink to="/public-transport" class="action-btn" style="background: #3b82f6;">Open STM &amp; transit</RouterLink>
         </div>
       </div>
 

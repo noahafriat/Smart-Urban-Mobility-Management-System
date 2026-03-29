@@ -52,6 +52,27 @@
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+
+		<!-- GTFS-Realtime (protobuf) for STM iBUS trip updates -->
+		<dependency>
+			<groupId>org.onebusaway</groupId>
+			<artifactId>onebusaway-gtfs-realtime-api</artifactId>
+			<version>1.2.0</version>
+		</dependency>
+
+		<!-- Load backend/.env before Spring resolves ${STM_API_KEY} placeholders -->
+		<dependency>
+			<groupId>io.github.cdimascio</groupId>
+			<artifactId>dotenv-java</artifactId>
+			<version>3.0.0</version>
+		</dependency>
+
+		<!-- GTFS static stops.txt (stop_id → stop_name) -->
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-csv</artifactId>
+			<version>1.11.0</version>
+		</dependency>
 	</dependencies>
 
 	<build>

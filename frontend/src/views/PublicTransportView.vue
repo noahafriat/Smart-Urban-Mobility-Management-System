@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { api } from '../api'
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                               */
@@ -59,6 +60,216 @@ const isLoadingMap = ref(false)
 const isRouting   = ref(false)
 const routes      = ref<Route[]>([])
 const activeRouteIndex = ref(0)
+
+/** Top-level page tabs: trip planner vs STM official schedules */
+const activePageTab = ref<'planner' | 'stm'>('planner')
+
+const stmResources = [
+  {
+    title: 'STM trip planner',
+    desc: 'Official STM site: plan metro and bus trips, fares, and general information.',
+    href: 'https://www.stm.info/en',
+    icon: '🗺️',
+  },
+  {
+    title: 'Metro network & schedules',
+    desc: 'Lines, stations, and metro timetables from the STM.',
+    href: 'https://www.stm.info/en/info/networks/metro',
+    icon: '🚇',
+  },
+  {
+    title: 'Bus network & schedules',
+    desc: 'Bus routes and schedule information.',
+    href: 'https://www.stm.info/en/info/networks/bus',
+    icon: '🚌',
+  },
+  {
+    title: 'Service status & alerts',
+    desc: 'Delays, detours, and elevator outages.',
+    href: 'https://www.stm.info/en/info/service-updates',
+    icon: '⚠️',
+  },
+] as const
+
+const metroLines = [
+  { name: 'Green', route: 'Angrignon ↔ Honoré-Beaugrand', color: '#008E4F' },
+  { name: 'Orange', route: 'Côte-Vertu ↔ Montmorency', color: '#F07A29' },
+  { name: 'Yellow', route: 'Berri-UQAM ↔ Longueuil', color: '#F8D200' },
+  { name: 'Blue', route: 'Snowdon ↔ Saint-Michel', color: '#0083C9' },
+] as const
+
+/** STM iBUS trip-updates proxy (backend needs stm.api.key) */
+interface BusDepartureRow {
+  stopId: string
+  stopName?: string | null
+  departureTime: string
+  departureTimeLocal: string
+  delaySeconds?: number
+  tripId?: string
+  directionId?: number
+  directionLabel?: string | null
+}
+
+interface BusDeparturesResponse {
+  configured?: boolean
+  message?: string
+  stmDeveloperPortal?: string
+  stmBusSchedules?: string
+  line?: string
+  stopCode?: string | null
+  directionLabels?: Record<string, string>
+  syncedAt?: string
+  count?: number
+  departures?: BusDepartureRow[]
+  hint?: string
+  error?: string
+}
+
+interface BusStopRow {
+  stopId: string
+  label: string
+  code?: string | null
+  stopName?: string | null
+}
+
+interface BusStopsResponse {
+  configured?: boolean
+  message?: string
+  stmDeveloperPortal?: string
+  line?: string
+  directionLabels?: Record<string, string>
+  syncedAt?: string
+  count?: number
+  stops?: BusStopRow[]
+  hint?: string
+  error?: string
+}
+
+const busLine = ref('')
+const busStopsList = ref<BusStopRow[]>([])
+const selectedBusStopId = ref('')
+const busLoading = ref(false)
+const busStopsLoading = ref(false)
+const busError = ref<string | null>(null)
+const busStopsHint = ref<string | null>(null)
+/** STM key missing / not subscribed (from stops or departures endpoint). */
+const stmBlocked = ref<BusDeparturesResponse | null>(null)
+const busResult = ref<BusDeparturesResponse | null>(null)
+
+let busStopsDebounce: ReturnType<typeof setTimeout> | null = null
+
+async function fetchBusStops() {
+  const line = busLine.value.trim()
+  busStopsList.value = []
+  selectedBusStopId.value = ''
+  busResult.value = null
+  busStopsHint.value = null
+  busError.value = null
+  stmBlocked.value = null
+
+  if (!line) {
+    return
+  }
+
+  busStopsLoading.value = true
+  try {
+    const res = await api.get<BusStopsResponse>(`/stm/bus-stops?line=${encodeURIComponent(line)}`)
+    const data = res.data
+    if (data.configured === false) {
+      stmBlocked.value = {
+        configured: false,
+        message: data.message,
+        stmDeveloperPortal: data.stmDeveloperPortal,
+        stmBusSchedules: 'https://www.stm.info/en/info/networks/bus',
+      }
+      return
+    }
+    if (data.error) {
+      busError.value = String(data.error)
+      return
+    }
+    busStopsList.value = data.stops ?? []
+    if (busStopsList.value.length === 0 && data.hint) {
+      busStopsHint.value = data.hint
+    }
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { error?: string } } }
+    busError.value = err.response?.data?.error ?? 'Could not load stops for this line.'
+  } finally {
+    busStopsLoading.value = false
+  }
+}
+
+async function fetchBusDepartures() {
+  const line = busLine.value.trim()
+  const stop = selectedBusStopId.value.trim()
+  if (!line) {
+    busError.value = 'Enter a bus line number (e.g. 165).'
+    return
+  }
+  if (!stop) {
+    busError.value = 'Choose a stop from the list.'
+    return
+  }
+  busLoading.value = true
+  busError.value = null
+  busResult.value = null
+  stmBlocked.value = null
+  try {
+    const params = new URLSearchParams({ line, stopCode: stop })
+    const res = await api.get<BusDeparturesResponse>(`/stm/bus-departures?${params.toString()}`)
+    if (res.data.configured === false) {
+      stmBlocked.value = res.data
+    } else {
+      busResult.value = res.data
+    }
+    if (res.data.error) {
+      busError.value = String(res.data.error)
+    }
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { error?: string } } }
+    busError.value = err.response?.data?.error ?? 'Could not load bus departures.'
+  } finally {
+    busLoading.value = false
+  }
+}
+
+watch(busLine, () => {
+  if (busStopsDebounce) {
+    clearTimeout(busStopsDebounce)
+    busStopsDebounce = null
+  }
+  busStopsList.value = []
+  selectedBusStopId.value = ''
+  busResult.value = null
+  busStopsHint.value = null
+  busError.value = null
+  stmBlocked.value = null
+
+  const line = busLine.value.trim()
+  if (!line) {
+    return
+  }
+  busStopsDebounce = setTimeout(() => {
+    busStopsDebounce = null
+    void fetchBusStops()
+  }, 450)
+})
+
+watch(selectedBusStopId, (id) => {
+  if (!id.trim()) {
+    busResult.value = null
+    busError.value = null
+    return
+  }
+  void fetchBusDepartures()
+})
+
+const selectedStopLabel = computed(() => {
+  const id = selectedBusStopId.value.trim()
+  if (!id) return ''
+  return busStopsList.value.find((s) => s.stopId === id)?.label ?? id
+})
 
 const canPlanRoute = computed(
   () => !!origin.value.trim() && !!destination.value.trim() && !!window.google,
@@ -291,8 +502,180 @@ onMounted(async () => {
     <section class="hero-card">
       <p class="eyebrow">Citizen mobility tools</p>
       <h1>Public Transport Hub</h1>
+      <p class="hero-text">
+        Plan trips in-app or open official STM schedules and the STM trip planner in a new tab.
+      </p>
     </section>
 
+    <!-- ── Page tabs (Trip planner | STM schedules) ── -->
+    <div class="page-tabs" role="tablist" aria-label="Public transport sections">
+      <button
+        type="button"
+        role="tab"
+        class="page-tab"
+        :class="{ active: activePageTab === 'planner' }"
+        :aria-selected="activePageTab === 'planner'"
+        @click="activePageTab = 'planner'"
+      >
+        Trip planner
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class="page-tab"
+        :class="{ active: activePageTab === 'stm' }"
+        :aria-selected="activePageTab === 'stm'"
+        @click="activePageTab = 'stm'"
+      >
+        STM schedule
+      </button>
+    </div>
+
+    <!-- ═══════════ STM official schedules tab ═══════════ -->
+    <section v-show="activePageTab === 'stm'" class="stm-panel">
+      <div class="stm-intro card">
+        <h2 class="section-title">STM (Montréal) — schedules &amp; tools</h2>
+        <p class="stm-lead">
+          Schedules and real-time data are maintained by the
+          <strong>Société de transport de Montréal</strong>. Use the links below for official metro and bus
+          timetables, maps, and alerts. SUMMS opens these in a new browser tab.
+        </p>
+      </div>
+
+      <div class="bus-departures card">
+        <h2 class="section-title">Bus line — next departures</h2>
+        <p class="stm-lead bus-departures-lead">
+          Real-time times come from STM’s <strong>GTFS-Realtime trip updates</strong> (iBUS). Enter a bus line; we load
+          stops that currently have upcoming data for that line. When the feed includes a trip
+          <strong>direction</strong>, we show it (North/South/East/West from the static schedule when we can match the
+          line). Stop names come from STM’s static GTFS (bundled).
+        </p>
+        <div class="bus-search-row">
+          <label class="field bus-field">
+            <span class="field-label">Bus line</span>
+            <input v-model="busLine" type="text" inputmode="numeric" placeholder="e.g. 165" maxlength="6" />
+          </label>
+          <label class="field bus-field bus-field-grow">
+            <span class="field-label">Stop</span>
+            <select
+              v-model="selectedBusStopId"
+              class="bus-select"
+              :disabled="!busLine.trim() || busStopsLoading || !busStopsList.length"
+            >
+              <option value="" disabled>
+                {{
+                  !busLine.trim()
+                    ? 'Enter a line first'
+                    : busStopsLoading
+                      ? 'Loading stops…'
+                      : busStopsList.length
+                        ? 'Choose a stop'
+                        : 'No stops in the live feed for this line'
+                }}
+              </option>
+              <option v-for="s in busStopsList" :key="s.stopId" :value="s.stopId">{{ s.label }}</option>
+            </select>
+          </label>
+          <div class="bus-search-actions">
+            <button
+              type="button"
+              class="action-btn secondary-bus-btn"
+              :disabled="busLoading || !selectedBusStopId.trim()"
+              @click="fetchBusDepartures"
+            >
+              {{ busLoading ? 'Loading…' : 'Refresh times' }}
+            </button>
+          </div>
+        </div>
+        <p v-if="busError" class="info-banner error">{{ busError }}</p>
+        <p v-if="busStopsHint" class="info-banner">{{ busStopsHint }}</p>
+        <div v-if="stmBlocked && stmBlocked.configured === false" class="info-banner warning">
+          <strong>STM API key not configured.</strong>
+          {{ stmBlocked.message }}
+          <template v-if="stmBlocked.stmDeveloperPortal">
+            <br />
+            <a :href="stmBlocked.stmDeveloperPortal" target="_blank" rel="noopener noreferrer">STM developer portal</a>
+            ·
+            <a v-if="stmBlocked.stmBusSchedules" :href="stmBlocked.stmBusSchedules" target="_blank" rel="noopener noreferrer">Bus schedules on stm.info</a>
+          </template>
+        </div>
+        <div v-if="busResult?.configured && busResult.departures?.length" class="bus-results">
+          <p class="bus-results-meta">
+            Line <strong>{{ busResult.line }}</strong>
+            <template v-if="selectedStopLabel"> · <strong>{{ selectedStopLabel }}</strong></template>
+            <template v-if="busResult.syncedAt"> · Updated {{ busResult.syncedAt }}</template>
+          </p>
+          <p
+            v-if="busResult.directionLabels && Object.keys(busResult.directionLabels).length"
+            class="bus-dir-legend"
+          >
+            Trip directions on this line:
+            <template v-for="(name, id) in busResult.directionLabels" :key="id">
+              <span class="bus-dir-pill"><strong>{{ id }}</strong> = {{ name }}</span>
+            </template>
+          </p>
+          <table class="bus-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Stop</th>
+                <th>Direction</th>
+                <th>Delay</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(row, i) in busResult.departures" :key="i">
+                <td class="bus-time">{{ row.departureTimeLocal }}</td>
+                <td class="bus-stop-cell">
+                  <div class="bus-stop-primary">{{ row.stopName || row.stopId }}</div>
+                  <div v-if="row.stopName" class="bus-stop-sub">ID {{ row.stopId }}</div>
+                </td>
+                <td class="bus-dir">
+                  <span v-if="row.directionLabel">{{ row.directionLabel }}</span>
+                  <span v-else-if="row.directionId === 0 || row.directionId === 1">{{ row.directionId }}</span>
+                  <span v-else>—</span>
+                </td>
+                <td>
+                  <span v-if="row.delaySeconds != null && row.delaySeconds !== 0">{{ row.delaySeconds }}s</span>
+                  <span v-else>—</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div v-else-if="busResult?.configured && busResult.hint" class="info-banner">{{ busResult.hint }}</div>
+      </div>
+
+      <div class="stm-grid">
+        <a
+          v-for="item in stmResources"
+          :key="item.href"
+          class="stm-card"
+          :href="item.href"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <span class="stm-card-icon" aria-hidden="true">{{ item.icon }}</span>
+          <span class="stm-card-title">{{ item.title }}</span>
+          <span class="stm-card-desc">{{ item.desc }}</span>
+          <span class="stm-card-cta">Open on stm.info →</span>
+        </a>
+      </div>
+
+      <div class="metro-ref card">
+        <h3 class="metro-ref-title">Metro lines (quick reference)</h3>
+        <ul class="metro-ref-list">
+          <li v-for="line in metroLines" :key="line.name" class="metro-ref-row">
+            <span class="metro-swatch" :style="{ background: line.color }" />
+            <span class="metro-name">Line {{ line.name }}</span>
+            <span class="metro-route">{{ line.route }}</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ═══════════ In-app trip planner tab ═══════════ -->
+    <div v-show="activePageTab === 'planner'">
     <!-- ── Planner inputs ── -->
     <section class="planner-card">
       <h2 class="section-title">Trip Planner</h2>
@@ -504,6 +887,7 @@ onMounted(async () => {
         </div>
       </article>
     </section>
+    </div>
   </div>
 </template>
 
@@ -547,9 +931,319 @@ h1 {
 
 .hero-text {
   margin: 0;
-  opacity: 0.85;
+  opacity: 0.9;
+  font-size: 0.98rem;
+  max-width: 640px;
+  line-height: 1.5;
+}
+
+/* Page-level tabs (below hero, on page background) */
+.page-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.1rem;
+  flex-wrap: wrap;
+}
+
+.page-tab {
+  border: 1.5px solid #e2e8f0;
+  background: #fff;
+  color: #475569;
+  font-weight: 700;
+  font-size: 0.92rem;
+  padding: 0.55rem 1.15rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, color 0.15s;
+}
+
+.page-tab:hover {
+  border-color: #c4b5fd;
+  color: #4f46e5;
+}
+
+.page-tab.active {
+  background: linear-gradient(135deg, #7c3aed, #4f46e5);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);
+}
+
+/* STM schedules tab */
+.stm-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.stm-intro .stm-lead {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #4a5568;
+  line-height: 1.55;
+}
+
+.bus-departures-lead {
+  margin-bottom: 1rem;
+}
+
+.bus-search-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem 1rem;
+  align-items: end;
+  margin-bottom: 0.75rem;
+}
+
+.bus-field-grow {
+  min-width: min(100%, 220px);
+}
+
+.bus-select {
+  border: 1.5px solid #dbe3ee;
+  border-radius: 10px;
+  padding: 0.75rem 0.85rem;
+  font-size: 0.95rem;
+  width: 100%;
+  box-sizing: border-box;
+  background: #fff;
+  color: #1a202c;
+  cursor: pointer;
+}
+
+.bus-select:focus {
+  outline: none;
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
+}
+
+.bus-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+  background: #f8fafc;
+}
+
+.secondary-bus-btn {
+  background: #fff !important;
+  color: #4f46e5 !important;
+  border: 1.5px solid #c4b5fd !important;
+}
+
+.secondary-bus-btn:hover:not(:disabled) {
+  background: #f5f3ff !important;
+}
+
+.bus-field .field-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #4a5568;
+}
+
+.bus-field input {
+  border: 1.5px solid #dbe3ee;
+  border-radius: 10px;
+  padding: 0.75rem 0.85rem;
+  font-size: 0.95rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.bus-field input:focus {
+  outline: none;
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
+}
+
+.bus-search-actions {
+  display: flex;
+  align-items: center;
+}
+
+.bus-search-actions .action-btn {
+  width: 100%;
+  justify-content: center;
+}
+
+.bus-results-meta {
+  margin: 0 0 0.65rem;
+  font-size: 0.88rem;
+  color: #64748b;
+}
+
+.bus-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.bus-table th,
+.bus-table td {
+  text-align: left;
+  padding: 0.55rem 0.65rem;
+  border-bottom: 1px solid #edf2f7;
+}
+
+.bus-table th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.bus-time {
+  font-weight: 800;
+  color: #1a202c;
+  white-space: nowrap;
+}
+
+.bus-stop-cell {
+  min-width: 0;
+}
+
+.bus-stop-primary {
+  font-weight: 700;
+  color: #1a202c;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.bus-stop-sub {
+  font-family: ui-monospace, monospace;
+  font-size: 0.72rem;
+  color: #94a3b8;
+  margin-top: 0.2rem;
+  word-break: break-all;
+}
+
+.bus-dir {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #334155;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.bus-dir-legend {
+  margin: 0 0 0.65rem;
+  font-size: 0.8rem;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.bus-dir-pill {
+  display: inline-block;
+  margin: 0.15rem 0.5rem 0 0;
+  padding: 0.12rem 0.45rem;
+  background: #f1f5f9;
+  border-radius: 6px;
+  font-size: 0.78rem;
+}
+
+.stm-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.85rem;
+}
+
+.stm-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  background: #fff;
+  border-radius: 14px;
+  padding: 1.1rem 1.15rem;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+}
+
+.stm-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.1);
+  border-color: #c4b5fd;
+}
+
+.stm-card-icon {
+  font-size: 1.35rem;
+}
+
+.stm-card-title {
+  font-size: 1.02rem;
+  font-weight: 800;
+  color: #1a202c;
+}
+
+.stm-card-desc {
+  font-size: 0.88rem;
+  color: #64748b;
+  line-height: 1.45;
+  flex: 1;
+}
+
+.stm-card-cta {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #6d28d9;
+  margin-top: 0.25rem;
+}
+
+.metro-ref-title {
+  margin: 0 0 0.85rem;
   font-size: 1rem;
-  max-width: 600px;
+  font-weight: 800;
+  color: #1a202c;
+}
+
+.metro-ref-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.metro-ref-row {
+  display: grid;
+  grid-template-columns: auto 100px 1fr;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 0.88rem;
+  color: #334155;
+}
+
+.metro-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.metro-name {
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.metro-route {
+  color: #64748b;
+}
+
+@media (max-width: 560px) {
+  .metro-ref-row {
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+  }
+  .metro-name {
+    grid-column: 2;
+  }
+  .metro-route {
+    grid-column: 1 / -1;
+    padding-left: calc(12px + 0.65rem);
+  }
 }
 
 /* ------------------------------------------------------------------ */
