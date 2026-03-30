@@ -108,6 +108,8 @@ interface BusDepartureRow {
   tripId?: string
   directionId?: number
   directionLabel?: string | null
+  wheelchairBoarding?: number
+  wheelchairAccessible?: boolean
 }
 
 interface BusDeparturesResponse {
@@ -117,6 +119,7 @@ interface BusDeparturesResponse {
   stmBusSchedules?: string
   line?: string
   stopCode?: string | null
+  accessibleOnly?: boolean
   directionLabels?: Record<string, string>
   syncedAt?: string
   count?: number
@@ -130,6 +133,8 @@ interface BusStopRow {
   label: string
   code?: string | null
   stopName?: string | null
+  wheelchairBoarding?: number
+  wheelchairAccessible?: boolean
 }
 
 interface BusStopsResponse {
@@ -137,6 +142,7 @@ interface BusStopsResponse {
   message?: string
   stmDeveloperPortal?: string
   line?: string
+  accessibleOnly?: boolean
   directionLabels?: Record<string, string>
   syncedAt?: string
   count?: number
@@ -146,6 +152,8 @@ interface BusStopsResponse {
 }
 
 const busLine = ref('')
+/** Restrict STM bus stops and departures to GTFS {@code wheelchair_boarding = 1}. */
+const busAccessibleOnly = ref(false)
 const busStopsList = ref<BusStopRow[]>([])
 const selectedBusStopId = ref('')
 const busLoading = ref(false)
@@ -161,8 +169,6 @@ let busStopsDebounce: ReturnType<typeof setTimeout> | null = null
 async function fetchBusStops() {
   const line = busLine.value.trim()
   busStopsList.value = []
-  selectedBusStopId.value = ''
-  busResult.value = null
   busStopsHint.value = null
   busError.value = null
   stmBlocked.value = null
@@ -173,7 +179,11 @@ async function fetchBusStops() {
 
   busStopsLoading.value = true
   try {
-    const res = await api.get<BusStopsResponse>(`/stm/bus-stops?line=${encodeURIComponent(line)}`)
+    const params = new URLSearchParams({ line })
+    if (busAccessibleOnly.value) {
+      params.set('accessibleOnly', 'true')
+    }
+    const res = await api.get<BusStopsResponse>(`/stm/bus-stops?${params.toString()}`)
     const data = res.data
     if (data.configured === false) {
       stmBlocked.value = {
@@ -189,6 +199,11 @@ async function fetchBusStops() {
       return
     }
     busStopsList.value = data.stops ?? []
+    const sel = selectedBusStopId.value.trim()
+    if (sel && !busStopsList.value.some((s) => s.stopId === sel)) {
+      selectedBusStopId.value = ''
+      busResult.value = null
+    }
     if (busStopsList.value.length === 0 && data.hint) {
       busStopsHint.value = data.hint
     }
@@ -217,6 +232,9 @@ async function fetchBusDepartures() {
   stmBlocked.value = null
   try {
     const params = new URLSearchParams({ line, stopCode: stop })
+    if (busAccessibleOnly.value) {
+      params.set('accessibleOnly', 'true')
+    }
     const res = await api.get<BusDeparturesResponse>(`/stm/bus-departures?${params.toString()}`)
     if (res.data.configured === false) {
       stmBlocked.value = res.data
@@ -263,6 +281,18 @@ watch(selectedBusStopId, (id) => {
     return
   }
   void fetchBusDepartures()
+})
+
+watch(busAccessibleOnly, () => {
+  busResult.value = null
+  if (!busLine.value.trim()) {
+    return
+  }
+  void fetchBusStops().then(() => {
+    if (selectedBusStopId.value.trim()) {
+      void fetchBusDepartures()
+    }
+  })
 })
 
 const selectedStopLabel = computed(() => {
@@ -548,8 +578,13 @@ onMounted(async () => {
           Real-time times come from STM’s <strong>GTFS-Realtime trip updates</strong> (iBUS). Enter a bus line; we load
           stops that currently have upcoming data for that line. When the feed includes a trip
           <strong>direction</strong>, we show it (North/South/East/West from the static schedule when we can match the
-          line). Stop names come from STM’s static GTFS (bundled).
+          line). Stop names and the <strong>wheelchair-accessible filter</strong> use STM’s static GTFS field
+          <code>wheelchair_boarding</code> = 1.
         </p>
+        <label class="bus-accessible-filter">
+          <input v-model="busAccessibleOnly" type="checkbox" />
+          <span>Wheelchair-accessible stops only</span>
+        </label>
         <div class="bus-search-row">
           <label class="field bus-field">
             <span class="field-label">Bus line</span>
@@ -573,7 +608,9 @@ onMounted(async () => {
                         : 'No stops in the live feed for this line'
                 }}
               </option>
-              <option v-for="s in busStopsList" :key="s.stopId" :value="s.stopId">{{ s.label }}</option>
+              <option v-for="s in busStopsList" :key="s.stopId" :value="s.stopId">
+                {{ s.wheelchairAccessible ? `${s.label} ♿` : s.label }}
+              </option>
             </select>
           </label>
           <div class="bus-search-actions">
@@ -619,6 +656,7 @@ onMounted(async () => {
               <tr>
                 <th>Time</th>
                 <th>Stop</th>
+                <th>Accessible</th>
                 <th>Direction</th>
                 <th>Delay</th>
               </tr>
@@ -629,6 +667,12 @@ onMounted(async () => {
                 <td class="bus-stop-cell">
                   <div class="bus-stop-primary">{{ row.stopName || row.stopId }}</div>
                   <div v-if="row.stopName" class="bus-stop-sub">ID {{ row.stopId }}</div>
+                </td>
+                <td class="bus-a11y-cell">
+                  <span v-if="row.wheelchairAccessible" class="bus-a11y-yes" title="STM GTFS: wheelchair_boarding = 1"
+                    >Yes</span
+                  >
+                  <span v-else class="bus-a11y-na">—</span>
                 </td>
                 <td class="bus-dir">
                   <span v-if="row.directionLabel">{{ row.directionLabel }}</span>
@@ -702,6 +746,11 @@ onMounted(async () => {
           <span v-else>🔍 Get Directions</span>
         </button>
       </div>
+
+      <p class="planner-transit-note">
+        Google’s in-app transit directions do not expose a wheelchair-only route mode here. For STM bus times filtered by
+        accessible stops, use the <strong>STM schedule</strong> tab and the checkbox below the intro.
+      </p>
 
       <p v-if="!GOOGLE_MAPS_API_KEY" class="info-banner warning">
         Add your Google Maps key to <code>frontend/.env.local</code> to activate the live map.
@@ -988,6 +1037,25 @@ h1 {
   margin-bottom: 1rem;
 }
 
+.bus-accessible-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  user-select: none;
+}
+
+.bus-accessible-filter input {
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: #7c3aed;
+  cursor: pointer;
+}
+
 .bus-search-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -1115,6 +1183,20 @@ h1 {
   color: #94a3b8;
   margin-top: 0.2rem;
   word-break: break-all;
+}
+
+.bus-a11y-cell {
+  white-space: nowrap;
+  font-size: 0.82rem;
+}
+
+.bus-a11y-yes {
+  font-weight: 800;
+  color: #047857;
+}
+
+.bus-a11y-na {
+  color: #94a3b8;
 }
 
 .bus-dir {
@@ -1330,6 +1412,17 @@ h1 {
 
 .planner-actions {
   margin-top: 0.5rem;
+}
+
+.planner-transit-note {
+  margin: 1rem 0 0;
+  padding: 0.75rem 1rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  color: #475569;
+  line-height: 1.5;
 }
 
 .action-btn {

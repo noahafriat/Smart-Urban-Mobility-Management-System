@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import { useAuthStore } from '../stores/auth'
-import { useAccessibilityStore } from '../stores/accessibility'
 import { useRouter } from 'vue-router'
 
 const auth = useAuthStore()
-const a11y = useAccessibilityStore()
 const router = useRouter()
 
 function doLogout() {
@@ -36,19 +34,6 @@ function doLogout() {
       </div>
 
       <div class="nav-actions">
-        <button
-          type="button"
-          class="a11y-nav-toggle"
-          :aria-pressed="a11y.enabled"
-          :aria-label="
-            a11y.enabled
-              ? 'Accessibility mode is on. Click to turn off.'
-              : 'Turn on accessibility mode: larger text, clearer focus, less motion.'
-          "
-          @click="a11y.toggle()"
-        >
-          {{ a11y.enabled ? 'Accessibility: on' : 'Accessibility' }}
-        </button>
         <template v-if="auth.isLoggedIn">
           <span class="user-greeting">Hi, {{ auth.user?.name?.split(' ')[0] }}</span>
           <button @click="doLogout" class="logout-btn">Log Out</button>
@@ -119,34 +104,6 @@ function doLogout() {
   gap: 1.25rem;
   flex-wrap: wrap;
   justify-content: flex-end;
-}
-
-.a11y-nav-toggle {
-  background: #f1f5f9;
-  border: 2px solid #cbd5e1;
-  padding: 0.35rem 0.75rem;
-  border-radius: 8px;
-  color: #0f172a;
-  font-weight: 700;
-  font-size: 0.8rem;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.a11y-nav-toggle:hover {
-  background: #e2e8f0;
-  border-color: #94a3b8;
-}
-
-.a11y-nav-toggle[aria-pressed='true'] {
-  background: #0f172a;
-  border-color: #0f172a;
-  color: #fff;
-}
-
-.a11y-nav-toggle:focus-visible {
-  outline: 3px solid #2563eb;
-  outline-offset: 2px;
 }
 
 .user-greeting {

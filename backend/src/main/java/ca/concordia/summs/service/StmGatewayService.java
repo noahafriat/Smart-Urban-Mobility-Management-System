@@ -32,6 +32,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -73,7 +74,7 @@ public class StmGatewayService {
         this.tripUpdatesUrl = tripUpdatesUrl == null ? "" : tripUpdatesUrl.trim();
     }
 
-    public Map<String, Object> getBusDepartures(String lineRaw, String stopCodeRaw) {
+    public Map<String, Object> getBusDepartures(String lineRaw, String stopCodeRaw, boolean accessibleOnly) {
         Map<String, Object> notConfigured = new LinkedHashMap<>();
         notConfigured.put("configured", false);
         notConfigured.put("message",
@@ -103,6 +104,12 @@ public class StmGatewayService {
             List<Map<String, Object>> departures =
                     collectUpcomingDeparturesForLine(feed, line, now, stopFilter, directionLabels);
 
+            if (accessibleOnly) {
+                departures = departures.stream()
+                        .filter(d -> gtfsStops.isWheelchairAccessibleStop(Objects.toString(d.get("stopId"), "")))
+                        .collect(Collectors.toCollection(ArrayList::new));
+            }
+
             departures.sort(Comparator.comparing(d -> Instant.parse(Objects.toString(d.get("departureTime"), ""))));
             int cap = 40;
             if (departures.size() > cap) {
@@ -113,6 +120,7 @@ public class StmGatewayService {
             ok.put("configured", true);
             ok.put("line", line);
             ok.put("stopCode", stopFilter.isEmpty() ? null : stopFilter);
+            ok.put("accessibleOnly", accessibleOnly);
             ok.put("directionLabels", directionLabelsMap(directionLabels));
             ok.put("syncedAt", LocalDateTime.now().toString());
             ok.put("count", departures.size());
@@ -135,7 +143,7 @@ public class StmGatewayService {
      * Unique stops on this line that have at least one upcoming departure in the current trip-updates feed.
      * Labels prefer static GTFS {@code stop_name}; otherwise sign code / raw id.
      */
-    public Map<String, Object> getBusStopsForLine(String lineRaw) {
+    public Map<String, Object> getBusStopsForLine(String lineRaw, boolean accessibleOnly) {
         Map<String, Object> notConfigured = new LinkedHashMap<>();
         notConfigured.put("configured", false);
         notConfigured.put("message",
@@ -173,6 +181,12 @@ public class StmGatewayService {
                 stops.add(stop);
             }
 
+            if (accessibleOnly) {
+                stops = stops.stream()
+                        .filter(s -> gtfsStops.isWheelchairAccessibleStop(Objects.toString(s.get("stopId"), "")))
+                        .collect(Collectors.toCollection(ArrayList::new));
+            }
+
             stops.sort(Comparator
                     .<Map<String, Object>, Integer>comparing(s -> sortKeyForStop(s.get("code")))
                     .thenComparing(s -> Objects.toString(s.get("label"), ""), String.CASE_INSENSITIVE_ORDER));
@@ -180,13 +194,16 @@ public class StmGatewayService {
             Map<String, Object> ok = new LinkedHashMap<>();
             ok.put("configured", true);
             ok.put("line", line);
+            ok.put("accessibleOnly", accessibleOnly);
             ok.put("directionLabels", directionLabelsMap(directionLabels));
             ok.put("syncedAt", LocalDateTime.now().toString());
             ok.put("count", stops.size());
             ok.put("stops", stops);
             if (stops.isEmpty()) {
-                ok.put("hint",
-                        "No upcoming trip updates for this line right now. Try again in a moment, or confirm the line number.");
+                ok.put("hint", accessibleOnly
+                        ? "No stops marked wheelchair-accessible in STM static GTFS (wheelchair_boarding = 1) appear in "
+                                + "the live feed for this line. Turn the filter off to see all active stops."
+                        : "No upcoming trip updates for this line right now. Try again in a moment, or confirm the line number.");
             }
             return ok;
 
@@ -429,6 +446,9 @@ public class StmGatewayService {
         if (!name.isEmpty()) {
             row.put("stopName", name);
         }
+        int wb = meta.map(StmGtfsStopsService.StopMeta::wheelchairBoarding).orElse(0);
+        row.put("wheelchairBoarding", wb);
+        row.put("wheelchairAccessible", wb == 1);
     }
 
     /** Fills {@code code}, optional {@code stopName}, and {@code label} for the stop dropdown. */
@@ -442,6 +462,9 @@ public class StmGatewayService {
         if (!name.isEmpty()) {
             target.put("stopName", name);
         }
+        int wb = meta.map(StmGtfsStopsService.StopMeta::wheelchairBoarding).orElse(0);
+        target.put("wheelchairBoarding", wb);
+        target.put("wheelchairAccessible", wb == 1);
         String codeForLabel = code != null ? code : "";
         target.put("label", buildUserFacingStopLabel(stopId, name, codeForLabel));
     }

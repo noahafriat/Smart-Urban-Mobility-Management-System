@@ -26,16 +26,19 @@ public class StmController {
     @GetMapping("/bus-departures")
     public ResponseEntity<Object> busDepartures(
             @RequestParam String line,
-            @RequestParam(required = false) String stopCode) {
-        return ResponseEntity.ok(stmGatewayService.getBusDepartures(line, stopCode));
+            @RequestParam(required = false) String stopCode,
+            @RequestParam(defaultValue = "false") boolean accessibleOnly) {
+        return ResponseEntity.ok(stmGatewayService.getBusDepartures(line, stopCode, accessibleOnly));
     }
 
     /**
-     * GET /api/stm/bus-stops?line=165
+     * GET /api/stm/bus-stops — params: line (required), accessibleOnly (optional, default false).
      */
     @GetMapping("/bus-stops")
-    public ResponseEntity<Object> busStops(@RequestParam String line) {
-        return ResponseEntity.ok(stmGatewayService.getBusStopsForLine(line));
+    public ResponseEntity<Object> busStops(
+            @RequestParam String line,
+            @RequestParam(defaultValue = "false") boolean accessibleOnly) {
+        return ResponseEntity.ok(stmGatewayService.getBusStopsForLine(line, accessibleOnly));
     }
 
     /**

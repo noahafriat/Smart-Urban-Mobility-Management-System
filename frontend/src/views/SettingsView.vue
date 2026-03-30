@@ -5,11 +5,9 @@
  */
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
-import { useAccessibilityStore } from '../stores/accessibility'
 import SettingsCard from '../components/SettingsCard.vue'
 
 const auth = useAuthStore()
-const a11y = useAccessibilityStore()
 
 const profile = ref({
   name: '',
@@ -96,32 +94,6 @@ function showSuccess(msg: string) {
     <div v-if="auth.error" class="alert error">{{ auth.error }}</div>
 
     <div class="settings-grid">
-      <!-- ── Accessibility ── -->
-      <section class="settings-card a11y-settings">
-        <header class="card-header">
-          <h2>Accessibility</h2>
-          <p>
-            Larger text, clearer keyboard focus, underlined links, and less animation. Your choice is saved on this
-            device.
-          </p>
-        </header>
-        <div class="a11y-row">
-          <label class="a11y-switch-label" for="a11y-mode-switch">Accessibility mode</label>
-          <button
-            id="a11y-mode-switch"
-            type="button"
-            role="switch"
-            class="a11y-switch"
-            :aria-checked="a11y.enabled"
-            @click="a11y.toggle()"
-          >
-            <span class="a11y-switch-knob" :class="{ on: a11y.enabled }" aria-hidden="true" />
-            <span class="sr-only">{{ a11y.enabled ? 'On' : 'Off' }}</span>
-          </button>
-          <span class="a11y-status" aria-live="polite">{{ a11y.enabled ? 'On' : 'Off' }}</span>
-        </div>
-      </section>
-
       <!-- ── Profile Section ── -->
       <section class="settings-card">
         <header class="card-header">
@@ -193,77 +165,6 @@ function showSuccess(msg: string) {
 
 .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5rem; align-items: start; }
 .settings-card { background: white; border: 1px solid #f1f5f9; border-radius: 28px; padding: 2.5rem; box-shadow: 0 10px 30px -10px rgba(0,0,0,0.04); }
-.a11y-settings { grid-column: 1 / -1; }
-
-.a11y-row {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.a11y-switch-label {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #334155;
-  margin: 0;
-}
-
-.a11y-switch {
-  position: relative;
-  width: 3.25rem;
-  height: 1.85rem;
-  border-radius: 999px;
-  border: 2px solid #cbd5e1;
-  background: #e2e8f0;
-  cursor: pointer;
-  padding: 0;
-  transition: background 0.2s, border-color 0.2s;
-}
-
-.a11y-switch[aria-checked='true'] {
-  background: #0f172a;
-  border-color: #0f172a;
-}
-
-.a11y-switch:focus-visible {
-  outline: 3px solid #3b82f6;
-  outline-offset: 3px;
-}
-
-.a11y-switch-knob {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 1.35rem;
-  height: 1.35rem;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-  transition: transform 0.2s;
-}
-
-.a11y-switch-knob.on {
-  transform: translateX(1.35rem);
-}
-
-.a11y-status {
-  font-weight: 800;
-  color: #0f172a;
-  font-size: 0.9rem;
-}
-
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
 
 .card-header h2 { font-size: 1.4rem; font-weight: 800; margin-bottom: 0.5rem; }
 .card-header p { color: #64748b; font-size: 0.95rem; margin-bottom: 2.5rem; }
