@@ -4,8 +4,9 @@ import NavBar from './components/NavBar.vue'
 </script>
 
 <template>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
   <NavBar />
-  <main class="main-container">
+  <main id="main-content" class="main-container" tabindex="-1">
     <RouterView />
   </main>
 </template>
