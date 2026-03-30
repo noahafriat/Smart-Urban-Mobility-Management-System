@@ -28,7 +28,11 @@ public class StmGtfsStopsService {
 
     private static final Logger log = LoggerFactory.getLogger(StmGtfsStopsService.class);
 
-    public record StopMeta(String stopName, String stopCode) {}
+    /**
+     * Static GTFS {@code stops.wheelchair_boarding}: {@code 0} = unknown / unspecified, {@code 1} = boarding possible
+     * per feed convention, {@code 2} = not possible.
+     */
+    public record StopMeta(String stopName, String stopCode, int wheelchairBoarding) {}
 
     private static final Pattern FIVE_DIGITS = Pattern.compile("\\d{5}");
 
@@ -65,7 +69,8 @@ public class StmGtfsStopsService {
                 }
                 String name = cell(rec, "stop_name");
                 String code = cell(rec, "stop_code");
-                StopMeta meta = new StopMeta(name, code);
+                int wheelchairBoarding = parseWheelchairBoarding(cell(rec, "wheelchair_boarding"));
+                StopMeta meta = new StopMeta(name, code, wheelchairBoarding);
                 idMap.put(id, meta);
                 if (!code.isEmpty()) {
                     codeMap.putIfAbsent(code, meta);
@@ -87,6 +92,23 @@ public class StmGtfsStopsService {
         } catch (IllegalArgumentException e) {
             return "";
         }
+    }
+
+    private static int parseWheelchairBoarding(String raw) {
+        if (raw == null || raw.isEmpty()) {
+            return 0;
+        }
+        try {
+            int v = Integer.parseInt(raw.trim());
+            return (v == 1 || v == 2) ? v : 0;
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    /** {@code true} when static GTFS marks this stop as wheelchair-accessible ({@code wheelchair_boarding == 1}). */
+    public boolean isWheelchairAccessibleStop(String stopIdRaw) {
+        return lookup(stopIdRaw).filter(m -> m.wheelchairBoarding() == 1).isPresent();
     }
 
     public Optional<StopMeta> lookup(String stopId) {

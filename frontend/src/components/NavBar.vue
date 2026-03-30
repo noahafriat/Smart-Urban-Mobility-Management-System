@@ -102,6 +102,8 @@ function doLogout() {
   display: flex;
   align-items: center;
   gap: 1.25rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .user-greeting {
