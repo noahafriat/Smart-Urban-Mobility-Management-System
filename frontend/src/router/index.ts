@@ -92,11 +92,11 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
-      // Rental Analytics (Admin + Provider)
+      // Epic 4: Rental Service Analytics (System Admin + Providers only — NOT City Admin)
       path: '/analytics/rentals',
       name: 'analytics-rentals',
       component: () => import('../views/RentalAnalyticsView.vue'),
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, rentalAnalyticsOnly: true },
     },
     {
       // Parking Analytics (Admin)
@@ -122,6 +122,9 @@ router.beforeEach((to, from, next) => {
     next('/login')
   } else if (to.meta.citizenOnly && !auth.isCitizen) {
     next('/dashboard')
+  } else if (to.meta.rentalAnalyticsOnly && !auth.canViewRentalAnalytics) {
+    // City Admins must not access rental/payment data — redirect to their transit view
+    next('/analytics/transit')
   } else if ((to.path === '/login' || to.path === '/register') && auth.isLoggedIn) {
     next('/dashboard')
   } else {
