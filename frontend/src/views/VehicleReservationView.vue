@@ -32,6 +32,11 @@ const savePaymentMethod = ref(true)
 const currentYear = new Date().getFullYear() % 100
 const years = Array.from({ length: 10 }, (_, i) => (currentYear + i).toString().padStart(2, '0'))
 const months = Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, '0'))
+const supportedCardTypes = [
+  { value: 'VISA', label: 'Visa' },
+  { value: 'MASTERCARD', label: 'Mastercard' },
+  { value: 'AMEX', label: 'Amex' },
+]
 
 function onlyNumbers(e: KeyboardEvent) {
   if (!/[0-9]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Tab') {
@@ -187,13 +192,21 @@ async function startReservation() {
          <!-- New Card Form -->
          <div v-if="selectedPaymentMethod === 'NEW'" class="new-card-form">
             <div class="form-row">
-              <label>Issuer Network</label>
-              <select v-model="cardType" class="modern-select">
-                <option value="VISA">VISA</option>
-                <option value="MASTERCARD">Mastercard</option>
-                <option value="AMEX">Amex</option>
-                <option value="OTHER">Other</option>
-              </select>
+              <label>Card Type</label>
+              <div class="card-brand-grid">
+                <button
+                  v-for="brand in supportedCardTypes"
+                  :key="brand.value"
+                  type="button"
+                  class="card-brand-option"
+                  :class="{ selected: cardType === brand.value }"
+                  @click="cardType = brand.value"
+                >
+                  <span class="card-brand-chip">{{ brand.value }}</span>
+                  <span class="card-brand-title">{{ brand.label }}</span>
+                  <span class="card-brand-copy">Use {{ brand.label }} for this booking</span>
+                </button>
+              </div>
             </div>
             <div class="form-row">
               <label>Full Name</label>
@@ -357,7 +370,20 @@ async function startReservation() {
 .m-val { font-weight: 800; color: #1e293b; font-family: 'JetBrains Mono', monospace; font-size: 1.05rem; }
 .m-label { font-size: 0.65rem; font-weight: 900; color: #94a3b8; text-transform: uppercase; display: block; letter-spacing: 0.05em; }
 
-.new-card-form { display: flex; flex-direction: column; gap: 1.25rem; padding: 1.75rem; background: #f8fafc; border-radius: 24px; border: 1px solid #f1f5f9; margin-bottom: 2.5rem; }
+.new-card-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+  padding: 1.75rem;
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+  border-radius: 24px;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 2.5rem;
+  overflow: hidden;
+}
+.form-row {
+  min-width: 0;
+}
 .form-row label { display: block; font-size: 0.75rem; font-weight: 800; color: #94a3b8; margin-bottom: 0.5rem; }
 input {
   padding: 0.85rem 1.1rem;
@@ -380,8 +406,85 @@ input, select {
 input:focus, select:focus { border-color: #3b82f6; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.08); outline: none; }
 
 .form-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 1.25rem; }
-.dual-input { display: flex; gap: 0.5rem; }
-.save-check { display: flex; align-items: center; gap: 0.75rem; font-size: 0.85rem; font-weight: 700; color: #64748b; cursor: pointer; }
+.dual-input { display: flex; gap: 0.5rem; min-width: 0; }
+.save-check {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #64748b;
+  cursor: pointer;
+  padding-top: 0.25rem;
+}
+.save-check span {
+  min-width: 0;
+}
+.card-brand-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.85rem;
+  width: 100%;
+}
+.card-brand-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.45rem;
+  min-width: 0;
+  min-height: 132px;
+  padding: 1rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  cursor: pointer;
+  transition: 0.2s ease;
+  text-align: left;
+  overflow: hidden;
+}
+.card-brand-option:hover {
+  border-color: #94a3b8;
+  transform: translateY(-1px);
+}
+.card-brand-option.selected {
+  border-color: #3b82f6;
+  background: #eff6ff;
+  box-shadow: 0 10px 24px -14px rgba(59, 130, 246, 0.45);
+}
+.card-brand-chip {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0.32rem 0.62rem;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #334155;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.card-brand-option.selected .card-brand-chip {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+.card-brand-title {
+  font-size: 0.95rem;
+  font-weight: 900;
+  color: #0f172a;
+  line-height: 1.25;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.card-brand-copy {
+  font-size: 0.78rem;
+  color: #64748b;
+  line-height: 1.4;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
 
 .btn-checkout { 
   width: 100%; 
@@ -409,5 +512,13 @@ input:focus, select:focus { border-color: #3b82f6; box-shadow: 0 0 0 4px rgba(59
 
 @media (max-width: 900px) {
   .reservation-layout { grid-template-columns: 1fr; padding: 2.5rem; }
+}
+
+@media (max-width: 640px) {
+  .new-card-form { padding: 1.25rem; }
+  .form-grid { grid-template-columns: 1fr; }
+  .dual-input { flex-direction: column; }
+  .card-brand-grid { grid-template-columns: 1fr; }
+  .card-brand-option { min-height: auto; }
 }
 </style>
