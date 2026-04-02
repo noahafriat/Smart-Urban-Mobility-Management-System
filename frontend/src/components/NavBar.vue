@@ -28,7 +28,7 @@ function doLogout() {
         <RouterLink v-if="auth.isCitizen" to="/rentals">My Rentals</RouterLink>
         <RouterLink v-if="auth.isCitizen" to="/settings">Settings</RouterLink>
         <RouterLink v-if="auth.isAdmin" to="/analytics/transit">Transit</RouterLink>
-        <RouterLink v-if="auth.isAdmin || auth.isProvider" to="/analytics/rentals">Rentals</RouterLink>
+        <RouterLink v-if="auth.canViewRentalAnalytics" to="/analytics/rentals">Rentals</RouterLink>
         <RouterLink v-if="auth.isAdmin" to="/analytics/parking">Parking</RouterLink>
         <RouterLink v-if="auth.isSysAdmin" to="/admin/users" class="admin-link">Users</RouterLink>
       </div>

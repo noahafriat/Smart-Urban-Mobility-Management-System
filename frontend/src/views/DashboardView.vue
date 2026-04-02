@@ -137,7 +137,7 @@ const auth = useAuthStore()
         </div>
 
         <!-- Rental Stats -->
-        <div v-if="auth.isAdmin" class="card admin-feature">
+        <div v-if="auth.canViewRentalAnalytics" class="card admin-feature">
           <header class="card-header">
             <div class="icon-box success">💰</div>
             <div class="header-text">

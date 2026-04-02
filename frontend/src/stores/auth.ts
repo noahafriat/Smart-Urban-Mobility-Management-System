@@ -22,10 +22,13 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isLoggedIn = computed(() => !!user.value)
   const isProvider = computed(() => user.value?.role === 'MOBILITY_PROVIDER')
-  const isAdmin = computed(() =>
-    user.value?.role === 'CITY_ADMIN' || user.value?.role === 'SYSTEM_ADMIN')
-  const isCitizen = computed(() => user.value?.role === 'CITIZEN')
+  const isCityAdmin = computed(() => user.value?.role === 'CITY_ADMIN')
   const isSysAdmin = computed(() => user.value?.role === 'SYSTEM_ADMIN')
+  // isAdmin = any elevated admin role (used for shared admin UI sections)
+  const isAdmin = computed(() => isCityAdmin.value || isSysAdmin.value)
+  const isCitizen = computed(() => user.value?.role === 'CITIZEN')
+  // City admins only see transit/parking — rental data is SYSTEM_ADMIN only
+  const canViewRentalAnalytics = computed(() => isSysAdmin.value || isProvider.value)
 
   // User registration
   async function register(payload: {
@@ -90,7 +93,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     user, error, loading,
-    isLoggedIn, isProvider, isAdmin, isCitizen, isSysAdmin,
+    isLoggedIn, isProvider, isAdmin, isCityAdmin, isCitizen, isSysAdmin, canViewRentalAnalytics,
     register, login, logout, updateProfile, fetchUserProfile,
   }
 })
