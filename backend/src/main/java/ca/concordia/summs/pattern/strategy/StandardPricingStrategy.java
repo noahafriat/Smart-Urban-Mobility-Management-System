@@ -1,13 +1,23 @@
 package ca.concordia.summs.pattern.strategy;
 
 import ca.concordia.summs.model.Rental;
+import org.springframework.stereotype.Component;
+import org.springframework.core.annotation.Order;
 import java.time.Duration;
 
 /**
  * Concrete implementation of PricingStrategy. 
  * Fees = Base Price + (Per Minute Rate * Total Minutes)
+ * Acts as a fallback if no other strategy applies.
  */
+@Component
+@Order(100)
 public class StandardPricingStrategy implements PricingStrategy {
+
+    @Override
+    public boolean supports(Rental rental) {
+        return true; // Fallback
+    }
 
     @Override
     public double calculateCost(Rental rental) {

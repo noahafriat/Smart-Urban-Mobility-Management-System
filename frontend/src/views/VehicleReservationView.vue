@@ -35,7 +35,8 @@ const months = Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(
 const supportedCardTypes = [
   { value: 'VISA', label: 'Visa' },
   { value: 'MASTERCARD', label: 'Mastercard' },
-  { value: 'AMEX', label: 'Amex' },
+  { value: 'AMEX', label: 'American Express' },
+  { value: 'CARD', label: 'Other / Generic' },
 ]
 
 function onlyNumbers(e: KeyboardEvent) {

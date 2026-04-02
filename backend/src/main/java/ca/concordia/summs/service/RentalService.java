@@ -21,17 +21,20 @@ public class RentalService extends RentalSubject {
     private final VehicleRepository vehicleRepository;
     private final UserRepository userRepository;
     private final List<PaymentStrategy> paymentStrategies;
+    private final List<PricingStrategy> pricingStrategies;
     
     // Automatically wires the AnalyticsObserver to this Subject
     public RentalService(RentalRepository rentalRepository, 
                          VehicleRepository vehicleRepository,
                          UserRepository userRepository,
                          List<PaymentStrategy> paymentStrategies,
+                         List<PricingStrategy> pricingStrategies,
                          AnalyticsObserver analyticsObserver) {
         this.rentalRepository = rentalRepository;
         this.vehicleRepository = vehicleRepository;
         this.userRepository = userRepository;
         this.paymentStrategies = paymentStrategies;
+        this.pricingStrategies = pricingStrategies;
         this.addObserver(analyticsObserver); // Subject registers its Observer
     }
 
@@ -93,7 +96,7 @@ public class RentalService extends RentalSubject {
         vehicleRepository.save(vehicle);
         
         // Calculate the fee dynamically using the Strategy Pattern
-        PricingStrategy pricing = new StandardPricingStrategy();
+        PricingStrategy pricing = resolvePricingStrategy(rental);
         double cost = pricing.calculateCost(rental);
         rental.setTotalCost(cost);
         
@@ -137,5 +140,12 @@ public class RentalService extends RentalSubject {
                 .filter(strategy -> strategy.supports(paymentInfo))
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("Unsupported payment method."));
+    }
+
+    private PricingStrategy resolvePricingStrategy(Rental rental) {
+        return pricingStrategies.stream()
+                .filter(strategy -> strategy.supports(rental))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("No pricing strategy found for this rental."));
     }
 }
