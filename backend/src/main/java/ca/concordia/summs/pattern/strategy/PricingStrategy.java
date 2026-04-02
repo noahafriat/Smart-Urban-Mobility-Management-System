@@ -7,5 +7,6 @@ import ca.concordia.summs.model.Rental;
  * from the RentalService.
  */
 public interface PricingStrategy {
+    boolean supports(Rental rental);
     double calculateCost(Rental rental);
 }

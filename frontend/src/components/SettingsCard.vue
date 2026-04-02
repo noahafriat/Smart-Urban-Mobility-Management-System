@@ -57,9 +57,10 @@ function onlyNumbers(e: KeyboardEvent) {
         <div class="field flex-2">
           <label>Card Issuer</label>
           <select v-model="cardType">
-            <option value="VISA">VISA</option>
+            <option value="VISA">Visa</option>
             <option value="MASTERCARD">Mastercard</option>
             <option value="AMEX">American Express</option>
+            <option value="CARD">Other / Generic</option>
           </select>
         </div>
         <div class="field flex-3">

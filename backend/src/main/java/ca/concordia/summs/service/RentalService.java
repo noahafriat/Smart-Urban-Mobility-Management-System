@@ -6,6 +6,7 @@ import ca.concordia.summs.repository.UserRepository;
 import ca.concordia.summs.repository.VehicleRepository;
 import ca.concordia.summs.pattern.observer.RentalSubject;
 import ca.concordia.summs.pattern.observer.AnalyticsObserver;
+import ca.concordia.summs.pattern.strategy.PaymentStrategy;
 import ca.concordia.summs.pattern.strategy.PricingStrategy;
 import ca.concordia.summs.pattern.strategy.StandardPricingStrategy;
 import org.springframework.stereotype.Service;
@@ -19,15 +20,21 @@ public class RentalService extends RentalSubject {
     private final RentalRepository rentalRepository;
     private final VehicleRepository vehicleRepository;
     private final UserRepository userRepository;
+    private final List<PaymentStrategy> paymentStrategies;
+    private final List<PricingStrategy> pricingStrategies;
     
     // Automatically wires the AnalyticsObserver to this Subject
     public RentalService(RentalRepository rentalRepository, 
                          VehicleRepository vehicleRepository,
                          UserRepository userRepository,
+                         List<PaymentStrategy> paymentStrategies,
+                         List<PricingStrategy> pricingStrategies,
                          AnalyticsObserver analyticsObserver) {
         this.rentalRepository = rentalRepository;
         this.vehicleRepository = vehicleRepository;
         this.userRepository = userRepository;
+        this.paymentStrategies = paymentStrategies;
+        this.pricingStrategies = pricingStrategies;
         this.addObserver(analyticsObserver); // Subject registers its Observer
     }
 
@@ -47,12 +54,12 @@ public class RentalService extends RentalSubject {
             throw new IllegalArgumentException("A payment method is required before reserving.");
         }
         
-        // NO CHARGE HERE - Deferred to payForRental
-        String paymentLabel = toPaymentLabel(effectivePaymentInfo);
+        PaymentStrategy paymentStrategy = resolvePaymentStrategy(effectivePaymentInfo);
+        String paymentLabel = paymentStrategy.toPaymentLabel(effectivePaymentInfo);
         
         // Add to user's saved methods if it's new and they want to save it
         if (hasText(paymentInfo) && savePaymentMethod) {
-            String label = toPaymentLabel(paymentInfo);
+            String label = paymentStrategy.toPaymentLabel(paymentInfo);
             if (!user.getPaymentMethods().contains(label)) {
                 user.getPaymentMethods().add(label);
                 userRepository.save(user);
@@ -89,7 +96,7 @@ public class RentalService extends RentalSubject {
         vehicleRepository.save(vehicle);
         
         // Calculate the fee dynamically using the Strategy Pattern
-        PricingStrategy pricing = new StandardPricingStrategy();
+        PricingStrategy pricing = resolvePricingStrategy(rental);
         double cost = pricing.calculateCost(rental);
         rental.setTotalCost(cost);
         
@@ -111,7 +118,7 @@ public class RentalService extends RentalSubject {
         
         // NOW WE CHARGE - Using the card saved at the start
         String method = rental.getReservationPaymentMethod();
-        processReservationPayment(method);
+        resolvePaymentStrategy(method).processPayment(method);
         
         rental.setFinalPaymentMethod(method);
         rental.setFinalPaymentProcessedAt(LocalDateTime.now());
@@ -124,30 +131,21 @@ public class RentalService extends RentalSubject {
         return rentalRepository.findByUserId(userId);
     }
 
-    private void processReservationPayment(String paymentInfo) {
-        String digitsOnly = paymentInfo.replaceAll("\\D", "");
-        if (digitsOnly.length() > 0 && digitsOnly.length() < 4) {
-            throw new IllegalArgumentException("Enter a valid fake credit card.");
-        }
-        if (digitsOnly.endsWith("0000")) {
-            throw new IllegalArgumentException("Payment was declined. Try a different payment method.");
-        }
-    }
-
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
     }
 
-    private String toPaymentLabel(String paymentInfo) {
-        String trimmed = paymentInfo.trim();
-        if (trimmed.matches(".*-\\d{4}$")) {
-            return trimmed;
-        }
+    private PaymentStrategy resolvePaymentStrategy(String paymentInfo) {
+        return paymentStrategies.stream()
+                .filter(strategy -> strategy.supports(paymentInfo))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Unsupported payment method."));
+    }
 
-        String digitsOnly = trimmed.replaceAll("\\D", "");
-        if (digitsOnly.length() >= 4) {
-            return "CARD-" + digitsOnly.substring(digitsOnly.length() - 4);
-        }
-        return trimmed;
+    private PricingStrategy resolvePricingStrategy(Rental rental) {
+        return pricingStrategies.stream()
+                .filter(strategy -> strategy.supports(rental))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("No pricing strategy found for this rental."));
     }
 }
