@@ -1,0 +1,3 @@
+stop_id,stop_code,stop_name,stop_lat,stop_lon
+STM_99901,99901,Sample Boulevard / Test,45.5,-73.5
+99902,99902,Other Corner Stop,45.51,-73.51
