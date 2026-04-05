@@ -6,6 +6,8 @@ import ca.concordia.summs.model.User;
 import ca.concordia.summs.model.UserRole;
 import ca.concordia.summs.model.VehicleStatus;
 import ca.concordia.summs.pattern.observer.AnalyticsObserver;
+import ca.concordia.summs.pattern.strategy.StandardPricingStrategy;
+import ca.concordia.summs.pattern.strategy.VisaPaymentStrategy;
 import ca.concordia.summs.repository.RentalRepository;
 import ca.concordia.summs.repository.UserRepository;
 import ca.concordia.summs.repository.VehicleRepository;
@@ -15,7 +17,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -46,8 +48,8 @@ class RentalServiceTest {
                 rentalRepository,
                 vehicleRepository,
                 userRepository,
-                Collections.emptyList(),
-                Collections.emptyList(),
+                List.of(new VisaPaymentStrategy()),
+                List.of(new StandardPricingStrategy()),
                 analyticsObserver);
     }
 
