@@ -15,6 +15,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.Collections;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -41,7 +42,13 @@ class RentalServiceTest {
 
     @BeforeEach
     void setUp() {
-        rentalService = new RentalService(rentalRepository, vehicleRepository, userRepository, analyticsObserver);
+        rentalService = new RentalService(
+                rentalRepository,
+                vehicleRepository,
+                userRepository,
+                Collections.emptyList(),
+                Collections.emptyList(),
+                analyticsObserver);
     }
 
     @Test
