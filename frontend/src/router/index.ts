@@ -58,11 +58,10 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
-      // Parking Spaces (Citizens)
       path: '/parking-spaces',
       name: 'parking-spaces',
       component: () => import('../views/ParkingSpacesView.vue'),
-      meta: { requiresAuth: true, citizenOnly: true },
+      meta: { requiresAuth: true, citizenOnly: true, parkingProviderAllowed: true },
     },
     {
       // Citizen settings for account/payment management
@@ -120,7 +119,11 @@ router.beforeEach((to, from, next) => {
   const auth = useAuthStore()
   if (to.meta.requiresAuth && !auth.isLoggedIn) {
     next('/login')
-  } else if (to.meta.citizenOnly && !auth.isCitizen) {
+  } else if (
+    to.meta.citizenOnly &&
+    !auth.isCitizen &&
+    !(to.meta.parkingProviderAllowed && auth.isParkingProvider)
+  ) {
     next('/dashboard')
   } else if (to.meta.rentalAnalyticsOnly && !auth.canViewRentalAnalytics) {
     // City Admins must not access rental/payment data — redirect to their transit view

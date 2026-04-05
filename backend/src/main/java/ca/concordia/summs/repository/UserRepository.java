@@ -67,6 +67,10 @@ public class UserRepository {
         scooterProvider.setProviderType("SCOOTER");
         save(scooterProvider);
 
+        User parkingProvider = new User("parking-provider-id", "Parking Provider", "parking@summs.ca", "parking123", UserRole.MOBILITY_PROVIDER);
+        parkingProvider.setProviderType("PARKING");
+        save(parkingProvider);
+
         User sys   = new User("System Admin",   "sys@summs.ca",   "sys123",      UserRole.SYSTEM_ADMIN);
         save(sys);
     }

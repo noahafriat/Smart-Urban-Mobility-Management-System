@@ -1,5 +1,5 @@
 <script setup lang="ts">
-
+import ParkingGarageManager from '../components/ParkingGarageManager.vue'
 import ProviderFleetManager from '../components/ProviderFleetManager.vue'
 import { useAuthStore } from '../stores/auth'
 
@@ -74,8 +74,8 @@ const auth = useAuthStore()
         </div>
       </div>
 
-      <!-- ── Provider Specific Tools ── -->
-      <div class="card provider-main-card" v-if="auth.isProvider">
+      <!-- ── Vehicle provider fleet ── -->
+      <div class="card provider-main-card" v-if="auth.isProvider && !auth.isParkingProvider">
         <header class="card-header">
            <div class="icon-box">{{ auth.user?.providerType === 'CAR' ? '🚗' : '🛴' }}</div>
            <div class="header-text">
@@ -84,6 +84,22 @@ const auth = useAuthStore()
            </div>
         </header>
         <ProviderFleetManager v-if="auth.user" :provider-id="auth.user.id" />
+      </div>
+
+      <!-- ── Parking garage provider ── -->
+      <div class="card provider-main-card" v-if="auth.isParkingProvider && auth.user">
+        <header class="card-header">
+          <div class="icon-box">🅿️</div>
+          <div class="header-text">
+            <h2>Garage operations</h2>
+            <p>Add locations, set capacity, and monitor availability city-wide.</p>
+          </div>
+        </header>
+        <ParkingGarageManager :provider-id="auth.user.id" />
+        <div class="card-footer" style="display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1rem;">
+          <RouterLink to="/parking-spaces" class="action-btn" style="background: #2b6cb0;">Public parking view</RouterLink>
+          <RouterLink to="/mobility-map" class="action-btn" style="background: #0f766e;">Mobility map</RouterLink>
+        </div>
       </div>
       
       <div class="card" v-if="auth.isCitizen">

@@ -19,7 +19,9 @@ interface BixiStation {
 
 interface ParkingGarage {
   id: string
+  providerId?: string
   name: string
+  address?: string
   latitude: number
   longitude: number
   totalSpaces: number
@@ -97,6 +99,11 @@ onMounted(async () => {
       showCars.value = false
       showGarages.value = false
       showBixi.value = false
+    } else if (auth.user?.providerType === 'PARKING') {
+      showCars.value = false
+      showScooters.value = false
+      showBixi.value = false
+      showGarages.value = true
     }
   }
 
@@ -223,6 +230,9 @@ function renderLayers() {
   }
 
   for (const garage of garages.value) {
+    const src =
+      !garage.providerId || garage.providerId === '__CITY__' ? 'City' : 'Partner'
+    const addr = garage.address ? `<br><small>${garage.address}</small>` : ''
     const marker = L.circleMarker([garage.latitude, garage.longitude], {
       radius: 8,
       color: '#b91c1c',
@@ -230,7 +240,7 @@ function renderLayers() {
       fillOpacity: 0.9,
       weight: 2,
     }).bindPopup(
-      `<strong>${garage.name}</strong><br>Available Spaces: ${garage.availableSpaces}/${garage.totalSpaces}<br><br><button data-path="/parking-spaces?selectedId=${garage.id}" class="popup-btn">View Details →</button>`
+      `<strong>${garage.name}</strong> <span style="opacity:.75">(${src})</span>${addr}<br>Available: ${garage.availableSpaces} / ${garage.totalSpaces}<br><br><button data-path="/parking-spaces?selectedId=${garage.id}" class="popup-btn">View details →</button>`
     )
     marker.on('click', () => focusOnMarker(garage.latitude, garage.longitude))
     garageLayer.addLayer(marker)
@@ -280,7 +290,7 @@ async function refreshMapData() {
       <label v-if="!auth.isProvider || auth.user?.providerType === 'CAR'"><input v-model="showCars" type="checkbox" @change="toggleLayer" /> <span class="dot car"></span> Cars ({{ cars.length }})</label>
       <label v-if="!auth.isProvider || auth.user?.providerType === 'SCOOTER'"><input v-model="showScooters" type="checkbox" @change="toggleLayer" /> <span class="dot scooter"></span> Scooter docks ({{ scooterDocks.length }})</label>
       <label v-if="!auth.isProvider"><input v-model="showBixi" type="checkbox" @change="toggleLayer" /> <span class="dot bixi"></span> BIXI stations ({{ stations.length }})</label>
-      <label v-if="!auth.isProvider"><input v-model="showGarages" type="checkbox" @change="toggleLayer" /> <span class="dot garage"></span> Parking Garages ({{ garages.length }})</label>
+      <label v-if="!auth.isProvider || auth.user?.providerType === 'PARKING'"><input v-model="showGarages" type="checkbox" @change="toggleLayer" /> <span class="dot garage"></span> Parking Garages ({{ garages.length }})</label>
     </div>
 
     <div v-if="error" class="state error">{{ error }}</div>
