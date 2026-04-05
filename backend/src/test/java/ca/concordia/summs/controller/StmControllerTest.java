@@ -27,7 +27,7 @@ class StmControllerTest {
 
     @Test
     void busStops_returnsPayloadFromService() throws Exception {
-        when(stmGatewayService.getBusStopsForLine(eq("165")))
+        when(stmGatewayService.getBusStopsForLine(eq("165"), eq(false)))
                 .thenReturn(Map.of(
                         "configured", true,
                         "line", "165",
@@ -41,7 +41,7 @@ class StmControllerTest {
 
     @Test
     void busDepartures_returnsPayloadFromService() throws Exception {
-        when(stmGatewayService.getBusDepartures(eq("80"), eq("12345")))
+        when(stmGatewayService.getBusDepartures(eq("80"), eq("12345"), eq(false)))
                 .thenReturn(Map.of("configured", true, "line", "80", "count", 0));
 
         mockMvc.perform(get("/api/stm/bus-departures")

@@ -33,8 +33,6 @@ import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Fetches STM iBUS GTFS-Realtime trip updates and extracts upcoming departures for a bus line.
@@ -42,6 +40,13 @@ import java.util.regex.Pattern;
  */
 @Service
 public class StmGatewayService {
+
+    private static final String STM_API_KEY_HELP =
+            "Set STM_API_KEY in backend/.env (see backend/.env.example) or as an environment variable. "
+                    + "Register at https://portail.developpeurs.stm.info/apihub/ and subscribe to "
+                    + "Données Ouverte iBUS - GTFS-Realtime (v2.0).";
+    private static final String STM_DEV_PORTAL = "https://portail.developpeurs.stm.info/apihub/";
+    private static final String STM_BUS_SCHEDULES = "https://www.stm.info/en/info/networks/bus";
 
     private static final ZoneId MONTREAL = ZoneId.of("America/Montreal");
     private static final DateTimeFormatter TIME_FMT =
@@ -58,7 +63,6 @@ public class StmGatewayService {
     private volatile byte[] cachedBody;
     private volatile Instant cachedAt = Instant.EPOCH;
     private static final Duration CACHE_TTL = Duration.ofSeconds(45);
-    private static final Pattern FIVE_DIGIT = Pattern.compile("\\d{5}");
 
     private final StmGtfsStopsService gtfsStops;
     private final StmGtfsLineDirectionsService lineDirections;
@@ -75,17 +79,8 @@ public class StmGatewayService {
     }
 
     public Map<String, Object> getBusDepartures(String lineRaw, String stopCodeRaw, boolean accessibleOnly) {
-        Map<String, Object> notConfigured = new LinkedHashMap<>();
-        notConfigured.put("configured", false);
-        notConfigured.put("message",
-                "Set STM_API_KEY in backend/.env (see backend/.env.example) or as an environment variable. "
-                        + "Register at https://portail.developpeurs.stm.info/apihub/ and subscribe to "
-                        + "Données Ouverte iBUS - GTFS-Realtime (v2.0).");
-        notConfigured.put("stmDeveloperPortal", "https://portail.developpeurs.stm.info/apihub/");
-        notConfigured.put("stmBusSchedules", "https://www.stm.info/en/info/networks/bus");
-
         if (apiKey.isBlank()) {
-            return notConfigured;
+            return stmApiKeyMissingResponse(true);
         }
 
         String line = StmRouteLineUtil.normalizeBusLine(lineRaw);
@@ -144,16 +139,8 @@ public class StmGatewayService {
      * Labels prefer static GTFS {@code stop_name}; otherwise sign code / raw id.
      */
     public Map<String, Object> getBusStopsForLine(String lineRaw, boolean accessibleOnly) {
-        Map<String, Object> notConfigured = new LinkedHashMap<>();
-        notConfigured.put("configured", false);
-        notConfigured.put("message",
-                "Set STM_API_KEY in backend/.env (see backend/.env.example) or as an environment variable. "
-                        + "Register at https://portail.developpeurs.stm.info/apihub/ and subscribe to "
-                        + "Données Ouverte iBUS - GTFS-Realtime (v2.0).");
-        notConfigured.put("stmDeveloperPortal", "https://portail.developpeurs.stm.info/apihub/");
-
         if (apiKey.isBlank()) {
-            return notConfigured;
+            return stmApiKeyMissingResponse(false);
         }
 
         String line = StmRouteLineUtil.normalizeBusLine(lineRaw);
@@ -219,11 +206,8 @@ public class StmGatewayService {
      * sample stop_time_update). Remove or protect in production if desired.
      */
     public Map<String, Object> debugTripSampleForLine(String lineRaw) {
-        Map<String, Object> notConfigured = new LinkedHashMap<>();
-        notConfigured.put("configured", false);
-        notConfigured.put("message", "STM API key not configured.");
         if (apiKey.isBlank()) {
-            return notConfigured;
+            return stmApiKeyMissingDebugResponse();
         }
         String line = StmRouteLineUtil.normalizeBusLine(lineRaw);
         if (line.isEmpty()) {
@@ -446,9 +430,7 @@ public class StmGatewayService {
         if (!name.isEmpty()) {
             row.put("stopName", name);
         }
-        int wb = meta.map(StmGtfsStopsService.StopMeta::wheelchairBoarding).orElse(0);
-        row.put("wheelchairBoarding", wb);
-        row.put("wheelchairAccessible", wb == 1);
+        putWheelchairFields(row, meta);
     }
 
     /** Fills {@code code}, optional {@code stopName}, and {@code label} for the stop dropdown. */
@@ -462,11 +444,15 @@ public class StmGatewayService {
         if (!name.isEmpty()) {
             target.put("stopName", name);
         }
-        int wb = meta.map(StmGtfsStopsService.StopMeta::wheelchairBoarding).orElse(0);
-        target.put("wheelchairBoarding", wb);
-        target.put("wheelchairAccessible", wb == 1);
+        putWheelchairFields(target, meta);
         String codeForLabel = code != null ? code : "";
         target.put("label", buildUserFacingStopLabel(stopId, name, codeForLabel));
+    }
+
+    private static void putWheelchairFields(Map<String, Object> row, Optional<StmGtfsStopsService.StopMeta> meta) {
+        int wb = meta.map(StmGtfsStopsService.StopMeta::wheelchairBoarding).orElse(0);
+        row.put("wheelchairBoarding", wb);
+        row.put("wheelchairAccessible", wb == 1);
     }
 
     private static String buildUserFacingStopLabel(String stopId, String stopName, String code) {
@@ -480,15 +466,26 @@ public class StmGatewayService {
     }
 
     private static String extractFiveDigitStopCode(String stopId) {
-        if (stopId == null || stopId.isBlank()) {
-            return "";
+        return StmGtfsCsv.lastFiveDigitSequence(stopId).orElse("");
+    }
+
+    /** JSON payload when STM realtime is unavailable because the API key is not set. */
+    private static Map<String, Object> stmApiKeyMissingResponse(boolean includeBusSchedulesLink) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("configured", false);
+        m.put("message", STM_API_KEY_HELP);
+        m.put("stmDeveloperPortal", STM_DEV_PORTAL);
+        if (includeBusSchedulesLink) {
+            m.put("stmBusSchedules", STM_BUS_SCHEDULES);
         }
-        String last = null;
-        Matcher m = FIVE_DIGIT.matcher(stopId);
-        while (m.find()) {
-            last = m.group();
-        }
-        return last != null ? last : "";
+        return m;
+    }
+
+    private static Map<String, Object> stmApiKeyMissingDebugResponse() {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("configured", false);
+        m.put("message", "STM API key not configured.");
+        return m;
     }
 
     private static int sortKeyForStop(Object codeObj) {

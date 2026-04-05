@@ -1,7 +1,6 @@
 package ca.concordia.summs.service;
 
 import jakarta.annotation.PostConstruct;
-import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 import org.slf4j.Logger;
@@ -117,20 +116,15 @@ public class StmGtfsLineDirectionsService {
         Map<String, ShapeEnds> map = new HashMap<>();
         try (var in = shapesResource.getInputStream();
                 var reader = new InputStreamReader(in, StandardCharsets.UTF_8);
-                CSVParser parser = CSVFormat.DEFAULT.builder()
-                        .setHeader()
-                        .setSkipHeaderRecord(true)
-                        .setIgnoreEmptyLines(true)
-                        .build()
-                        .parse(reader)) {
+                CSVParser parser = StmGtfsCsv.stmFormat().parse(reader)) {
             for (CSVRecord rec : parser) {
-                String sid = cell(rec, "shape_id");
+                String sid = StmGtfsCsv.cell(rec, "shape_id");
                 if (sid.isEmpty()) {
                     continue;
                 }
-                String seqStr = cell(rec, "shape_pt_sequence");
-                String latStr = cell(rec, "shape_pt_lat");
-                String lonStr = cell(rec, "shape_pt_lon");
+                String seqStr = StmGtfsCsv.cell(rec, "shape_pt_sequence");
+                String latStr = StmGtfsCsv.cell(rec, "shape_pt_lat");
+                String lonStr = StmGtfsCsv.cell(rec, "shape_pt_lon");
                 if (seqStr.isEmpty() || latStr.isEmpty() || lonStr.isEmpty()) {
                     continue;
                 }
@@ -154,18 +148,13 @@ public class StmGtfsLineDirectionsService {
         Map<RouteDir, TripDirSample> map = new HashMap<>();
         try (var in = tripsResource.getInputStream();
                 var reader = new InputStreamReader(in, StandardCharsets.UTF_8);
-                CSVParser parser = CSVFormat.DEFAULT.builder()
-                        .setHeader()
-                        .setSkipHeaderRecord(true)
-                        .setIgnoreEmptyLines(true)
-                        .build()
-                        .parse(reader)) {
+                CSVParser parser = StmGtfsCsv.stmFormat().parse(reader)) {
             for (CSVRecord rec : parser) {
-                String routeId = cell(rec, "route_id");
+                String routeId = StmGtfsCsv.cell(rec, "route_id");
                 if (routeId.isEmpty()) {
                     continue;
                 }
-                String dirStr = cell(rec, "direction_id");
+                String dirStr = StmGtfsCsv.cell(rec, "direction_id");
                 if (dirStr.isEmpty()) {
                     continue;
                 }
@@ -179,8 +168,8 @@ public class StmGtfsLineDirectionsService {
                 if (map.containsKey(key)) {
                     continue;
                 }
-                String shapeId = cell(rec, "shape_id");
-                String head = cell(rec, "trip_headsign");
+                String shapeId = StmGtfsCsv.cell(rec, "shape_id");
+                String head = StmGtfsCsv.cell(rec, "trip_headsign");
                 map.put(key, new TripDirSample(shapeId, head));
             }
         }
@@ -252,15 +241,6 @@ public class StmGtfsLineDirectionsService {
             return "South";
         }
         return "West";
-    }
-
-    private static String cell(CSVRecord rec, String header) {
-        try {
-            String v = rec.get(header);
-            return v == null ? "" : v.trim();
-        } catch (IllegalArgumentException e) {
-            return "";
-        }
     }
 
     /**

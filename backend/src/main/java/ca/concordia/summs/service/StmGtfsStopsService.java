@@ -1,9 +1,7 @@
 package ca.concordia.summs.service;
 
 import jakarta.annotation.PostConstruct;
-import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
-import org.apache.commons.csv.CSVRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,8 +13,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Loads STM <strong>static</strong> GTFS {@code stops.txt} to resolve {@code stop_id} → human-readable
@@ -33,8 +29,6 @@ public class StmGtfsStopsService {
      * per feed convention, {@code 2} = not possible.
      */
     public record StopMeta(String stopName, String stopCode, int wheelchairBoarding) {}
-
-    private static final Pattern FIVE_DIGITS = Pattern.compile("\\d{5}");
 
     private final Resource stopsResource;
     private Map<String, StopMeta> byStopId = Map.of();
@@ -56,26 +50,21 @@ public class StmGtfsStopsService {
         Map<String, StopMeta> codeMap = new HashMap<>();
         try (var in = stopsResource.getInputStream();
                 var reader = new InputStreamReader(in, StandardCharsets.UTF_8);
-                CSVParser parser = CSVFormat.DEFAULT.builder()
-                        .setHeader()
-                        .setSkipHeaderRecord(true)
-                        .setIgnoreEmptyLines(true)
-                        .build()
-                        .parse(reader)) {
-            for (CSVRecord rec : parser) {
-                String id = cell(rec, "stop_id");
+                CSVParser parser = StmGtfsCsv.stmFormat().parse(reader)) {
+            parser.forEach(rec -> {
+                String id = StmGtfsCsv.cell(rec, "stop_id");
                 if (id.isEmpty()) {
-                    continue;
+                    return;
                 }
-                String name = cell(rec, "stop_name");
-                String code = cell(rec, "stop_code");
-                int wheelchairBoarding = parseWheelchairBoarding(cell(rec, "wheelchair_boarding"));
+                String name = StmGtfsCsv.cell(rec, "stop_name");
+                String code = StmGtfsCsv.cell(rec, "stop_code");
+                int wheelchairBoarding = parseWheelchairBoarding(StmGtfsCsv.cell(rec, "wheelchair_boarding"));
                 StopMeta meta = new StopMeta(name, code, wheelchairBoarding);
                 idMap.put(id, meta);
                 if (!code.isEmpty()) {
                     codeMap.putIfAbsent(code, meta);
                 }
-            }
+            });
         } catch (Exception e) {
             log.error("Failed to load STM GTFS stops from {}: {}", stopsResource, e.getMessage());
             return;
@@ -83,15 +72,6 @@ public class StmGtfsStopsService {
         byStopId = Map.copyOf(idMap);
         byStopCode = Map.copyOf(codeMap);
         log.info("Loaded {} STM static stops for name lookup ({} distinct stop codes)", byStopId.size(), byStopCode.size());
-    }
-
-    private static String cell(CSVRecord rec, String header) {
-        try {
-            String v = rec.get(header);
-            return v == null ? "" : v.trim();
-        } catch (IllegalArgumentException e) {
-            return "";
-        }
     }
 
     private static int parseWheelchairBoarding(String raw) {
@@ -124,22 +104,13 @@ public class StmGtfsStopsService {
         if (meta != null) {
             return Optional.of(meta);
         }
-        String lastFive = lastFiveDigitGroup(id);
-        if (lastFive != null) {
-            meta = byStopCode.get(lastFive);
+        Optional<String> lastFive = StmGtfsCsv.lastFiveDigitSequence(id);
+        if (lastFive.isPresent()) {
+            meta = byStopCode.get(lastFive.get());
             if (meta != null) {
                 return Optional.of(meta);
             }
         }
         return Optional.empty();
-    }
-
-    private static String lastFiveDigitGroup(String s) {
-        String last = null;
-        Matcher m = FIVE_DIGITS.matcher(s);
-        while (m.find()) {
-            last = m.group();
-        }
-        return last;
     }
 }
