@@ -52,13 +52,36 @@ const showCars = ref(true)
 const showScooters = ref(true)
 const showBixi = ref(true)
 const showGarages = ref(true)
+/** Parking provider: toggle own vs everyone else’s garages (separate layers & colours). */
+const showMyParkingGarages = ref(true)
+const showOtherParkingGarages = ref(true)
+
+const CITY_INFRA = '__CITY__'
 
 let map: L.Map | null = null
 let carsLayer: L.LayerGroup | null = null
 let scootersLayer: L.LayerGroup | null = null
 let bixiLayer: L.LayerGroup | null = null
 let garageLayer: L.LayerGroup | null = null
+let myParkingLayer: L.LayerGroup | null = null
+let otherParkingLayer: L.LayerGroup | null = null
 const focusZoomLevel = 16
+
+const isParkingProviderViewer = computed(
+  () => auth.user?.providerType === 'PARKING' && !!auth.user?.id,
+)
+
+const myParkingGarages = computed(() => {
+  const uid = auth.user?.id
+  if (!isParkingProviderViewer.value || !uid) return []
+  return garages.value.filter((g) => g.providerId === uid)
+})
+
+const otherParkingGarages = computed(() => {
+  const uid = auth.user?.id
+  if (!isParkingProviderViewer.value || !uid) return []
+  return garages.value.filter((g) => g.providerId !== uid)
+})
 
 const cars = computed(() => vehicles.value.filter(v => v.type === 'CAR'))
 const scooters = computed(() => vehicles.value.filter(v => v.type === 'SCOOTER'))
@@ -103,7 +126,8 @@ onMounted(async () => {
       showCars.value = false
       showScooters.value = false
       showBixi.value = false
-      showGarages.value = true
+      showMyParkingGarages.value = true
+      showOtherParkingGarages.value = true
     }
   }
 
@@ -174,6 +198,8 @@ function renderLayers() {
   if (scootersLayer) map.removeLayer(scootersLayer)
   if (bixiLayer) map.removeLayer(bixiLayer)
   if (garageLayer) map.removeLayer(garageLayer)
+  if (myParkingLayer) map.removeLayer(myParkingLayer)
+  if (otherParkingLayer) map.removeLayer(otherParkingLayer)
 
   const qLat = parseFloat(route.query.lat as string)
   const qLng = parseFloat(route.query.lng as string)
@@ -183,6 +209,8 @@ function renderLayers() {
   scootersLayer = L.layerGroup()
   bixiLayer = L.layerGroup()
   garageLayer = L.layerGroup()
+  myParkingLayer = L.layerGroup()
+  otherParkingLayer = L.layerGroup()
 
   for (const car of cars.value) {
     const marker = L.circleMarker([car.latitude, car.longitude], {
@@ -229,28 +257,81 @@ function renderLayers() {
     if (station.lat === qLat && station.lon === qLng && showBixi.value) targetMarker = marker
   }
 
-  for (const garage of garages.value) {
+  function bindGaragePopup(garage: ParkingGarage, label: string) {
     const src =
-      !garage.providerId || garage.providerId === '__CITY__' ? 'City' : 'Partner'
+      !garage.providerId || garage.providerId === CITY_INFRA ? 'City' : 'Partner'
     const addr = garage.address ? `<br><small>${garage.address}</small>` : ''
-    const marker = L.circleMarker([garage.latitude, garage.longitude], {
-      radius: 8,
-      color: '#b91c1c',
-      fillColor: '#f87171',
-      fillOpacity: 0.9,
-      weight: 2,
-    }).bindPopup(
-      `<strong>${garage.name}</strong> <span style="opacity:.75">(${src})</span>${addr}<br>Available: ${garage.availableSpaces} / ${garage.totalSpaces}<br><br><button data-path="/parking-spaces?selectedId=${garage.id}" class="popup-btn">View details →</button>`
-    )
-    marker.on('click', () => focusOnMarker(garage.latitude, garage.longitude))
-    garageLayer.addLayer(marker)
-    if (garage.latitude === qLat && garage.longitude === qLng && showGarages.value) targetMarker = marker
+    return `<strong>${garage.name}</strong> <span style="opacity:.75">(${label} · ${src})</span>${addr}<br>Available: ${garage.availableSpaces} / ${garage.totalSpaces}<br><br><button data-path="/parking-spaces?selectedId=${garage.id}" class="popup-btn">View details →</button>`
+  }
+
+  if (isParkingProviderViewer.value) {
+    for (const garage of myParkingGarages.value) {
+      const marker = L.circleMarker([garage.latitude, garage.longitude], {
+        radius: 9,
+        color: '#0369a1',
+        fillColor: '#38bdf8',
+        fillOpacity: 0.95,
+        weight: 2,
+      }).bindPopup(bindGaragePopup(garage, 'Your garage'))
+      marker.on('click', () => focusOnMarker(garage.latitude, garage.longitude))
+      myParkingLayer!.addLayer(marker)
+      if (
+        garage.latitude === qLat &&
+        garage.longitude === qLng &&
+        showMyParkingGarages.value
+      ) {
+        targetMarker = marker
+      }
+    }
+    for (const garage of otherParkingGarages.value) {
+      const marker = L.circleMarker([garage.latitude, garage.longitude], {
+        radius: 8,
+        color: '#9a3412',
+        fillColor: '#fb923c',
+        fillOpacity: 0.9,
+        weight: 2,
+      }).bindPopup(bindGaragePopup(garage, 'Other operator'))
+      marker.on('click', () => focusOnMarker(garage.latitude, garage.longitude))
+      otherParkingLayer!.addLayer(marker)
+      if (
+        garage.latitude === qLat &&
+        garage.longitude === qLng &&
+        showOtherParkingGarages.value
+      ) {
+        targetMarker = marker
+      }
+    }
+  } else {
+    for (const garage of garages.value) {
+      const src =
+        !garage.providerId || garage.providerId === CITY_INFRA ? 'City' : 'Partner'
+      const addr = garage.address ? `<br><small>${garage.address}</small>` : ''
+      const marker = L.circleMarker([garage.latitude, garage.longitude], {
+        radius: 8,
+        color: '#b91c1c',
+        fillColor: '#f87171',
+        fillOpacity: 0.9,
+        weight: 2,
+      }).bindPopup(
+        `<strong>${garage.name}</strong> <span style="opacity:.75">(${src})</span>${addr}<br>Available: ${garage.availableSpaces} / ${garage.totalSpaces}<br><br><button data-path="/parking-spaces?selectedId=${garage.id}" class="popup-btn">View details →</button>`
+      )
+      marker.on('click', () => focusOnMarker(garage.latitude, garage.longitude))
+      garageLayer.addLayer(marker)
+      if (garage.latitude === qLat && garage.longitude === qLng && showGarages.value) {
+        targetMarker = marker
+      }
+    }
   }
 
   if (showCars.value) carsLayer.addTo(map)
   if (showScooters.value) scootersLayer.addTo(map)
   if (showBixi.value) bixiLayer.addTo(map)
-  if (showGarages.value) garageLayer.addTo(map)
+  if (isParkingProviderViewer.value) {
+    if (showMyParkingGarages.value) myParkingLayer.addTo(map)
+    if (showOtherParkingGarages.value) otherParkingLayer.addTo(map)
+  } else if (showGarages.value) {
+    garageLayer.addTo(map)
+  }
 
   if (targetMarker) {
     setTimeout(() => {
@@ -279,7 +360,12 @@ async function refreshMapData() {
     <header class="header">
       <div>
         <h1>Mobility Map</h1>
-        <p>Cars, scooters, and BIXI stations in one live view.</p>
+        <p>
+          <template v-if="isParkingProviderViewer">
+            Your garages are cyan; city and other operators are orange. Toggle each group below.
+          </template>
+          <template v-else>Cars, scooters, BIXI, and parking in one live view.</template>
+        </p>
       </div>
       <button class="refresh-btn" :disabled="loading" @click="refreshMapData">
         {{ loading ? 'Loading…' : 'Refresh' }}
@@ -290,7 +376,17 @@ async function refreshMapData() {
       <label v-if="!auth.isProvider || auth.user?.providerType === 'CAR'"><input v-model="showCars" type="checkbox" @change="toggleLayer" /> <span class="dot car"></span> Cars ({{ cars.length }})</label>
       <label v-if="!auth.isProvider || auth.user?.providerType === 'SCOOTER'"><input v-model="showScooters" type="checkbox" @change="toggleLayer" /> <span class="dot scooter"></span> Scooter docks ({{ scooterDocks.length }})</label>
       <label v-if="!auth.isProvider"><input v-model="showBixi" type="checkbox" @change="toggleLayer" /> <span class="dot bixi"></span> BIXI stations ({{ stations.length }})</label>
-      <label v-if="!auth.isProvider || auth.user?.providerType === 'PARKING'"><input v-model="showGarages" type="checkbox" @change="toggleLayer" /> <span class="dot garage"></span> Parking Garages ({{ garages.length }})</label>
+      <template v-if="isParkingProviderViewer">
+        <label>
+          <input v-model="showMyParkingGarages" type="checkbox" @change="toggleLayer" />
+          <span class="dot garage-mine"></span> My garages ({{ myParkingGarages.length }})
+        </label>
+        <label>
+          <input v-model="showOtherParkingGarages" type="checkbox" @change="toggleLayer" />
+          <span class="dot garage-other"></span> City &amp; other providers ({{ otherParkingGarages.length }})
+        </label>
+      </template>
+      <label v-else-if="!auth.isProvider"><input v-model="showGarages" type="checkbox" @change="toggleLayer" /> <span class="dot garage"></span> Parking garages ({{ garages.length }})</label>
     </div>
 
     <div v-if="error" class="state error">{{ error }}</div>
@@ -359,6 +455,8 @@ async function refreshMapData() {
 .dot.scooter { background: #a78bfa; border-color: #7c3aed; }
 .dot.bixi { background: #4ade80; border-color: #15803d; }
 .dot.garage { background: #f87171; border-color: #b91c1c; }
+.dot.garage-mine { background: #38bdf8; border-color: #0369a1; }
+.dot.garage-other { background: #fb923c; border-color: #9a3412; }
 
 .map-root {
   width: 100%;
