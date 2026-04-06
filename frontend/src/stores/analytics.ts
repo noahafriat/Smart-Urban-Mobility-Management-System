@@ -65,6 +65,8 @@ export interface ParkingAnalytics {
 
 // ── Store ──────────────────────────────────────────────────────────────────
 export const useAnalyticsStore = defineStore('analytics', () => {
+  let parkingFetchSeq = 0
+
   const transitData = ref<TransitAnalytics | null>(null)
   const rentalData = ref<RentalAnalytics | null>(null)
   const parkingData = ref<ParkingAnalytics | null>(null)
@@ -103,18 +105,26 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     }
   }
 
-  async function fetchParking(providerId?: string) {
+  async function fetchParking(providerId?: string, garageProviderId?: string) {
+    const seq = ++parkingFetchSeq
     loading.value = true
     error.value = null
     try {
       const params: Record<string, string> = {}
       if (providerId) params.providerId = providerId
+      if (garageProviderId) params.garageProviderId = garageProviderId
       const res = await api.get('/analytics/parking', { params })
-      parkingData.value = res.data as ParkingAnalytics
+      if (seq !== parkingFetchSeq) return
+      const raw = res.data as ParkingAnalytics
+      parkingData.value = {
+        ...raw,
+        garageDetails: Array.isArray(raw.garageDetails) ? [...raw.garageDetails] : [],
+      }
     } catch (e: any) {
+      if (seq !== parkingFetchSeq) return
       error.value = e.response?.data?.error || 'Failed to load parking analytics'
     } finally {
-      loading.value = false
+      if (seq === parkingFetchSeq) loading.value = false
     }
   }
 

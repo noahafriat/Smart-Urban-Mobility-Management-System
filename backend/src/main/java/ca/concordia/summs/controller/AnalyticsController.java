@@ -53,8 +53,9 @@ public class AnalyticsController {
      */
     @GetMapping("/parking")
     public ResponseEntity<Object> getParkingAnalytics(
-            @RequestParam(required = false) String providerId) {
-        return ResponseEntity.ok(analyticsService.getParkingAnalytics(providerId));
+            @RequestParam(required = false) String providerId,
+            @RequestParam(required = false) String garageProviderId) {
+        return ResponseEntity.ok(analyticsService.getParkingAnalytics(providerId, garageProviderId));
     }
     /**
      * Gateway / Service-Level Analytic — probes the live BIXI GBFS API.

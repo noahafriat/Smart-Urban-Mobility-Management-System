@@ -13,6 +13,7 @@ interface UserOption {
   name: string
   email: string
   role?: string
+  providerType?: string
   // Used only for provider-scoping in admin UI
   hasCar?: boolean
   hasScooter?: boolean
@@ -149,14 +150,14 @@ async function refreshRentals() {
     // Mobility providers see only their own fleet stats
     const providerId = auth.user?.id
     await store.fetchRentals(providerId, undefined)
-    await store.fetchParking(providerId)
+    await store.fetchParking(providerId, undefined)
     return
   }
 
   // City/Sys admins can drill into a provider (or view the platform)
   const providerId = selectedProviderId.value || undefined
   await store.fetchRentals(providerId, undefined)
-  await store.fetchParking(providerId)
+  await store.fetchParking(providerId, undefined)
 }
 
 async function loadUsers() {
@@ -169,6 +170,7 @@ async function loadUsers() {
       name: String(row.name ?? 'Unknown'),
       email: String(row.email ?? ''),
       role: String(row.role ?? ''),
+      providerType: row.providerType != null ? String(row.providerType) : undefined,
     }))
   } catch {
     users.value = []
@@ -180,7 +182,9 @@ async function loadProviders() {
   providersLoadError.value = null
 
   try {
-    const mobilityProviders = users.value.filter((u) => u.role === 'MOBILITY_PROVIDER')
+    const mobilityProviders = users.value.filter(
+      (u) => u.role === 'MOBILITY_PROVIDER' && u.providerType !== 'PARKING',
+    )
     const enriched = await Promise.all(
       mobilityProviders.map(async (p) => {
         try {

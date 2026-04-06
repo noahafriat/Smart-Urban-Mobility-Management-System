@@ -211,11 +211,17 @@ public class AnalyticsService {
      * UC-20: Parking / Fleet Utilization Analytics (Admin only)
      * Models parking-zone utilization via vehicle locations as a proxy.
      */
-    public Map<String, Object> getParkingAnalytics(String providerId) {
-        boolean providerScoped = providerId != null && !providerId.isBlank();
+    /**
+     * @param vehicleProviderId optional filter for vehicle / zone utilization (mobility fleet)
+     * @param garageProviderId optional filter for stationary garages: blank = all,
+     *                         {@link ParkingGarage#CITY_INFRA_PROVIDER_ID} = city-owned only,
+     *                         or a parking-provider user id
+     */
+    public Map<String, Object> getParkingAnalytics(String vehicleProviderId, String garageProviderId) {
+        boolean providerScoped = vehicleProviderId != null && !vehicleProviderId.isBlank();
 
         List<Vehicle> fleet = vehicleRepository.findAll().stream()
-                .filter(v -> !providerScoped || v.getProviderId().equalsIgnoreCase(providerId))
+                .filter(v -> !providerScoped || v.getProviderId().equalsIgnoreCase(vehicleProviderId))
                 .toList();
 
         // Vehicles parked (= available) per zone
@@ -251,7 +257,19 @@ public class AnalyticsService {
         long totalAvailable = fleet.stream().filter(v -> v.getStatus() == VehicleStatus.AVAILABLE).count();
         double utilizationRate = totalActive == 0 ? 0.0 : ((totalActive - totalAvailable) * 100.0 / totalActive);
 
-        List<ParkingGarage> garageList = parkingGarageService.getAllGarages();
+        List<ParkingGarage> garageList = new ArrayList<>(parkingGarageService.getAllGarages());
+        if (garageProviderId != null && !garageProviderId.isBlank()) {
+            String gp = garageProviderId.trim();
+            if (ParkingGarage.CITY_INFRA_PROVIDER_ID.equals(gp)) {
+                garageList = garageList.stream()
+                        .filter(g -> ParkingGarage.CITY_INFRA_PROVIDER_ID.equals(g.getProviderId()))
+                        .toList();
+            } else {
+                garageList = garageList.stream()
+                        .filter(g -> gp.equals(g.getProviderId()))
+                        .toList();
+            }
+        }
         long totalGarages = garageList.size();
         long totalGarageSpaces = garageList.stream().mapToLong(ParkingGarage::getTotalSpaces).sum();
         long availableGarageSpaces = garageList.stream().mapToLong(ParkingGarage::getAvailableSpaces).sum();
