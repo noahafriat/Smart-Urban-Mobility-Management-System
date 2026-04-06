@@ -5,7 +5,7 @@ import ca.concordia.summs.model.ParkingReservation;
 import ca.concordia.summs.model.ParkingReservationStatus;
 import ca.concordia.summs.model.User;
 import ca.concordia.summs.model.UserRole;
-import ca.concordia.summs.pattern.strategy.PaymentStrategy;
+import ca.concordia.summs.pattern.strategy.payment.PaymentStrategy;
 import ca.concordia.summs.repository.UserRepository;
 import org.springframework.stereotype.Service;
 

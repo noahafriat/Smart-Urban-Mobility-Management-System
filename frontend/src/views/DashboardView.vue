@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import ParkingGarageManager from '../components/ParkingGarageManager.vue'
-import ProviderFleetManager from '../components/ProviderFleetManager.vue'
 import { useAuthStore } from '../stores/auth'
 
 const auth = useAuthStore()
@@ -74,36 +72,6 @@ const auth = useAuthStore()
         </div>
       </div>
 
-      <!-- ── Vehicle provider fleet ── -->
-      <div class="card provider-main-card" v-if="auth.isProvider && !auth.isParkingProvider">
-        <header class="card-header">
-           <div class="icon-box">{{ auth.user?.providerType === 'CAR' ? '🚗' : '🛴' }}</div>
-           <div class="header-text">
-              <h2>Fleet Operations</h2>
-              <p>Manage your vehicle inventory and search visibility.</p>
-           </div>
-        </header>
-        <ProviderFleetManager v-if="auth.user" :provider-id="auth.user.id" />
-      </div>
-
-      <!-- ── Municipal or commercial parking operator ── -->
-      <div class="card provider-main-card" v-if="auth.canManageParkingGarages && auth.user">
-        <header class="card-header">
-          <div class="icon-box">🅿️</div>
-          <div class="header-text">
-            <h2>{{ auth.isCityAdmin ? 'Municipal parking facilities' : 'Garage operations' }}</h2>
-            <p>
-              {{
-                auth.isCityAdmin
-                  ? 'Add and edit city-owned garages, capacity, and live availability.'
-                  : 'Add locations, set capacity, and monitor your garage availability.'
-              }}
-            </p>
-          </div>
-        </header>
-        <ParkingGarageManager :provider-id="auth.user.id" />
-      </div>
-      
       <div class="card" v-if="auth.isCitizen">
         <header class="card-header">
           <div class="icon-box">🚍</div>
@@ -148,6 +116,34 @@ const auth = useAuthStore()
       </header>
 
       <div class="admin-grid">
+        <!-- Fleet Operations (Car/Scooter Providers) -->
+        <div v-if="auth.isProvider && !auth.isParkingProvider" class="card admin-feature">
+          <header class="card-header">
+            <div class="icon-box success">{{ auth.user?.providerType === 'CAR' ? '🚗' : '🛴' }}</div>
+            <div class="header-text">
+              <h2>Fleet Operations</h2>
+              <p>Manage your vehicle inventory and update status.</p>
+            </div>
+          </header>
+          <div class="card-footer">
+            <RouterLink to="/admin/fleet" class="action-btn">Manage Fleet</RouterLink>
+          </div>
+        </div>
+
+        <!-- Municipal Parking Facilities (City Admin / Operators) -->
+        <div v-if="auth.canManageParkingGarages" class="card admin-feature">
+          <header class="card-header">
+            <div class="icon-box info">🏗️</div>
+            <div class="header-text">
+              <h2>{{ auth.isCityAdmin ? 'Municipal Parking' : 'Garage Operations' }}</h2>
+              <p>Add and edit city-owned garages and availability.</p>
+            </div>
+          </header>
+          <div class="card-footer">
+            <RouterLink to="/admin/parking" class="action-btn">Manage Parking</RouterLink>
+          </div>
+        </div>
+
         <!-- Transit Stats -->
         <div v-if="auth.canViewTransitAnalytics" class="card admin-feature">
           <header class="card-header">
