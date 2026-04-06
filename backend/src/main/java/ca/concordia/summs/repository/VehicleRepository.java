@@ -6,7 +6,7 @@ import ca.concordia.summs.model.VehicleType;
 import ca.concordia.summs.pattern.factory.VehicleFactory;
 import org.springframework.stereotype.Repository;
 
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
