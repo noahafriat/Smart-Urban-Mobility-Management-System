@@ -111,6 +111,20 @@ const router = createRouter({
       component: () => import('../views/UserManagementView.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      // Municipal Parking Management (City Admin)
+      path: '/admin/parking',
+      name: 'admin-parking',
+      component: () => import('../views/ParkingManagementView.vue'),
+      meta: { requiresAuth: true, canManageParking: true },
+    },
+    {
+      // Fleet Operations (Providers)
+      path: '/admin/fleet',
+      name: 'admin-fleet',
+      component: () => import('../views/FleetManagementView.vue'),
+      meta: { requiresAuth: true, isProviderOnly: true },
+    },
   ],
 })
 
@@ -130,6 +144,10 @@ router.beforeEach((to, from, next) => {
   } else if (to.meta.transitAnalytics && !auth.canViewTransitAnalytics) {
     next('/dashboard')
   } else if (to.meta.parkingAnalytics && !auth.canViewParkingAnalytics) {
+    next('/dashboard')
+  } else if (to.meta.canManageParking && !auth.canManageParkingGarages) {
+    next('/dashboard')
+  } else if (to.meta.isProviderOnly && (!auth.isProvider || auth.isParkingProvider)) {
     next('/dashboard')
   } else if ((to.path === '/login' || to.path === '/register') && auth.isLoggedIn) {
     next('/dashboard')
