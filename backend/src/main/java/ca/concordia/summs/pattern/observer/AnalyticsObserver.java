@@ -3,9 +3,8 @@ package ca.concordia.summs.pattern.observer;
 import ca.concordia.summs.pattern.singleton.AnalyticsEngine;
 import org.springframework.stereotype.Component;
 
-/**
- * Concrete Observer that pushes rental events to the Singleton AnalyticsEngine.
- */
+// Concrete Observer that pushes rental events to the Singleton AnalyticsEngine.
+
 @Component
 public class AnalyticsObserver implements RentalObserver {
 

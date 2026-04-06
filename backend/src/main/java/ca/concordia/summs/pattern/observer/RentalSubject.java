@@ -3,10 +3,9 @@ package ca.concordia.summs.pattern.observer;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Subject component of the Observer Pattern.
- * Inherited by the RentalService to notify listeners without hard-coding dependencies.
- */
+// Subject component of the Observer Pattern.
+// Inherited by the RentalService to notify listeners.
+
 public abstract class RentalSubject {
     private final List<RentalObserver> observers = new ArrayList<>();
 
