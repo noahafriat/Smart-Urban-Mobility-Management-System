@@ -19,9 +19,11 @@ import java.util.stream.Collectors;
 public class VehicleService {
 
     private final VehicleRepository vehicleRepository;
+    private final Map<String, VehicleFactory> factories;
 
-    public VehicleService(VehicleRepository vehicleRepository) {
+    public VehicleService(VehicleRepository vehicleRepository, Map<String, VehicleFactory> factories) {
         this.vehicleRepository = vehicleRepository;
+        this.factories = factories;
     }
 
     /**
@@ -93,7 +95,15 @@ public class VehicleService {
         VehicleType type = requireVehicleType(payload.get("type"));
         String city = requireText(payload.get("locationCity"), "Location city is required.");
 
-        Vehicle vehicle = VehicleFactory.createVehicle(type, providerId, city);
+        String factoryName = type.name().toLowerCase() + "Factory";
+        VehicleFactory factory = factories.get(factoryName);
+        
+        if (factory == null) {
+            throw new IllegalArgumentException("No factory found for vehicle type: " + type);
+        }
+        
+        Vehicle vehicle = factory.orderVehicle(providerId, city);
+        
         applyVehicleUpdates(vehicle, payload, false);
         applyDefaultCoordinatesIfMissing(vehicle, payload);
         if (vehicle.getStatus() == VehicleStatus.INACTIVE) {
