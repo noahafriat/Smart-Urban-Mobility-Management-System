@@ -1,28 +1,55 @@
 package ca.concordia.summs.model;
 
+/**
+ * Municipal garages use the seeded city admin account id (see {@code UserRepository.CITY_ADMIN_USER_ID}).
+ * {@link #CITY_INFRA_PROVIDER_ID} is a legacy marker still accepted for filtering and defaults.
+ */
 public class ParkingGarage {
+
+    /** Seeded / municipal garages not tied to a mobility provider account. */
+    public static final String CITY_INFRA_PROVIDER_ID = "__CITY__";
+
     private String id;
+    /** Mobility provider user id, or {@link #CITY_INFRA_PROVIDER_ID} for platform garages. */
+    private String providerId;
     private String name;
     private String address;
     private double latitude;
     private double longitude;
     private int totalSpaces;
     private int availableSpaces;
+    /** Flat rate in dollars (e.g. per entry or standard session). */
+    private double flatRate;
 
     public ParkingGarage() {}
 
-    public ParkingGarage(String id, String name, String address, double latitude, double longitude, int totalSpaces, int availableSpaces) {
+    public ParkingGarage(String id, String providerId, String name, String address, double latitude, double longitude, int totalSpaces, int availableSpaces, double flatRate) {
         this.id = id;
+        this.providerId = providerId != null ? providerId : CITY_INFRA_PROVIDER_ID;
         this.name = name;
         this.address = address;
         this.latitude = latitude;
         this.longitude = longitude;
         this.totalSpaces = totalSpaces;
         this.availableSpaces = availableSpaces;
+        this.flatRate = Math.max(0, flatRate);
+    }
+
+    /** Convenience: zero flat rate. */
+    public ParkingGarage(String id, String providerId, String name, String address, double latitude, double longitude, int totalSpaces, int availableSpaces) {
+        this(id, providerId, name, address, latitude, longitude, totalSpaces, availableSpaces, 0);
+    }
+
+    /** Legacy constructor for city-owned garages. */
+    public ParkingGarage(String id, String name, String address, double latitude, double longitude, int totalSpaces, int availableSpaces) {
+        this(id, CITY_INFRA_PROVIDER_ID, name, address, latitude, longitude, totalSpaces, availableSpaces, 0);
     }
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
+
+    public String getProviderId() { return providerId; }
+    public void setProviderId(String providerId) { this.providerId = providerId; }
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
@@ -41,4 +68,7 @@ public class ParkingGarage {
 
     public String getAddress() { return address; }
     public void setAddress(String address) { this.address = address; }
+
+    public double getFlatRate() { return flatRate; }
+    public void setFlatRate(double flatRate) { this.flatRate = Math.max(0, flatRate); }
 }

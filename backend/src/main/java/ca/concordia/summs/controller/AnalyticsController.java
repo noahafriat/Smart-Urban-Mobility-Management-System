@@ -25,7 +25,7 @@ public class AnalyticsController {
 
     /**
      * UC-18: Monitor Transit Usage Analytics
-     * Intended for City Admin and System Admin roles.
+     * Intended for City Admin and System Admin (enforced in the frontend).
      * GET /api/analytics/transit
      */
     @GetMapping("/transit")
@@ -53,8 +53,10 @@ public class AnalyticsController {
      */
     @GetMapping("/parking")
     public ResponseEntity<Object> getParkingAnalytics(
-            @RequestParam(required = false) String providerId) {
-        return ResponseEntity.ok(analyticsService.getParkingAnalytics(providerId));
+            @RequestParam(required = false) String providerId,
+            @RequestParam(required = false) String garageProviderId,
+            @RequestParam(required = false) String requesterId) {
+        return ResponseEntity.ok(analyticsService.getParkingAnalytics(providerId, garageProviderId, requesterId));
     }
     /**
      * Gateway / Service-Level Analytic — probes the live BIXI GBFS API.

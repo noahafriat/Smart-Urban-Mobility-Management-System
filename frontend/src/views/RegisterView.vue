@@ -111,6 +111,7 @@ async function submit() {
           <select id="reg-provider-type" v-model="form.providerType">
             <option value="CAR">Car Provider</option>
             <option value="SCOOTER">Scooter Provider</option>
+            <option value="PARKING">Parking / Garage Provider</option>
           </select>
         </div>
 

@@ -2,11 +2,15 @@ package ca.concordia.summs.service;
 
 import ca.concordia.summs.model.Rental;
 import ca.concordia.summs.model.RentalStatus;
+import ca.concordia.summs.model.User;
+import ca.concordia.summs.model.UserRole;
 import ca.concordia.summs.model.Vehicle;
 import ca.concordia.summs.model.VehicleStatus;
 import ca.concordia.summs.pattern.singleton.AnalyticsEngine;
 import ca.concordia.summs.repository.RentalRepository;
 import ca.concordia.summs.model.ParkingGarage;
+import ca.concordia.summs.model.ParkingReservation;
+import ca.concordia.summs.model.ParkingReservationStatus;
 import ca.concordia.summs.repository.UserRepository;
 import ca.concordia.summs.repository.VehicleRepository;
 import org.springframework.stereotype.Service;
@@ -27,15 +31,18 @@ public class AnalyticsService {
     private final VehicleRepository vehicleRepository;
     private final UserRepository userRepository;
     private final ParkingGarageService parkingGarageService;
+    private final ParkingReservationService parkingReservationService;
 
     public AnalyticsService(RentalRepository rentalRepository,
                             VehicleRepository vehicleRepository,
                             UserRepository userRepository,
-                            ParkingGarageService parkingGarageService) {
+                            ParkingGarageService parkingGarageService,
+                            ParkingReservationService parkingReservationService) {
         this.rentalRepository = rentalRepository;
         this.vehicleRepository = vehicleRepository;
         this.userRepository = userRepository;
         this.parkingGarageService = parkingGarageService;
+        this.parkingReservationService = parkingReservationService;
     }
 
     /**
@@ -211,11 +218,40 @@ public class AnalyticsService {
      * UC-20: Parking / Fleet Utilization Analytics (Admin only)
      * Models parking-zone utilization via vehicle locations as a proxy.
      */
-    public Map<String, Object> getParkingAnalytics(String providerId) {
-        boolean providerScoped = providerId != null && !providerId.isBlank();
+    /**
+     * @param vehicleProviderId optional filter for vehicle / zone utilization (mobility fleet)
+     * @param garageProviderId optional filter for stationary garages: blank = all,
+     *                         {@link ParkingGarage#CITY_INFRA_PROVIDER_ID} = city-owned only,
+     *                         or a parking-provider user id
+     */
+    public Map<String, Object> getParkingAnalytics(String vehicleProviderId, String garageProviderId, String requesterId) {
+        boolean parkingOperatorSelfView = false;
+        String effectiveGarageProviderId = garageProviderId;
+        String effectiveVehicleProviderId = vehicleProviderId;
+        if (requesterId != null && !requesterId.isBlank()) {
+            Optional<User> viewer = userRepository.findById(requesterId.trim());
+            if (viewer.isPresent()) {
+                User vu = viewer.get();
+                boolean parkingOperator = vu.getRole() == UserRole.MOBILITY_PROVIDER
+                        && vu.getProviderType() != null
+                        && "PARKING".equalsIgnoreCase(vu.getProviderType());
+                boolean cityAdmin = vu.getRole() == UserRole.CITY_ADMIN;
+                if (parkingOperator || cityAdmin) {
+                    parkingOperatorSelfView = true;
+                    effectiveGarageProviderId = vu.getId();
+                    effectiveVehicleProviderId = null;
+                }
+            }
+        }
 
-        List<Vehicle> fleet = vehicleRepository.findAll().stream()
-                .filter(v -> !providerScoped || v.getProviderId().equalsIgnoreCase(providerId))
+        final String vehicleFilter = effectiveVehicleProviderId;
+        boolean providerScoped = !parkingOperatorSelfView
+                && vehicleFilter != null && !vehicleFilter.isBlank();
+
+        List<Vehicle> fleet = parkingOperatorSelfView
+                ? List.of()
+                : vehicleRepository.findAll().stream()
+                .filter(v -> !providerScoped || v.getProviderId().equalsIgnoreCase(vehicleFilter))
                 .toList();
 
         // Vehicles parked (= available) per zone
@@ -251,11 +287,117 @@ public class AnalyticsService {
         long totalAvailable = fleet.stream().filter(v -> v.getStatus() == VehicleStatus.AVAILABLE).count();
         double utilizationRate = totalActive == 0 ? 0.0 : ((totalActive - totalAvailable) * 100.0 / totalActive);
 
-        List<ParkingGarage> garageList = parkingGarageService.getAllGarages();
+        List<ParkingGarage> garageList = new ArrayList<>(parkingGarageService.getAllGarages());
+        if (effectiveGarageProviderId != null && !effectiveGarageProviderId.isBlank()) {
+            String gp = effectiveGarageProviderId.trim();
+            if (ParkingGarage.CITY_INFRA_PROVIDER_ID.equals(gp)) {
+                garageList = garageList.stream()
+                        .filter(g -> ParkingGarage.CITY_INFRA_PROVIDER_ID.equals(g.getProviderId())
+                                || UserRepository.CITY_ADMIN_USER_ID.equals(g.getProviderId()))
+                        .toList();
+            } else {
+                garageList = garageList.stream()
+                        .filter(g -> gp.equals(g.getProviderId()))
+                        .toList();
+            }
+        }
         long totalGarages = garageList.size();
         long totalGarageSpaces = garageList.stream().mapToLong(ParkingGarage::getTotalSpaces).sum();
         long availableGarageSpaces = garageList.stream().mapToLong(ParkingGarage::getAvailableSpaces).sum();
         double garageUtilization = totalGarageSpaces == 0 ? 0.0 : ((totalGarageSpaces - availableGarageSpaces) * 100.0 / totalGarageSpaces);
+
+        Set<String> scopeGarageIds = garageList.stream().map(ParkingGarage::getId).collect(Collectors.toSet());
+
+        Map<String, Integer> activeSpotsByGarage = new HashMap<>();
+        for (ParkingReservation r : parkingReservationService.allReservations()) {
+            if (r.getStatus() == ParkingReservationStatus.ACTIVE && scopeGarageIds.contains(r.getGarageId())) {
+                activeSpotsByGarage.merge(r.getGarageId(), r.getSpots(), Integer::sum);
+            }
+        }
+        int totalParkingSpotsTaken = 0;
+        for (ParkingGarage g : garageList) {
+            totalParkingSpotsTaken += Math.max(0, g.getTotalSpaces() - g.getAvailableSpaces());
+        }
+        int activeParkingSpotsInScope = activeSpotsByGarage.values().stream().mapToInt(Integer::intValue).sum();
+        double parkingCapacityUtilizationPercent = totalGarageSpaces == 0 ? 0.0
+                : Math.round((totalParkingSpotsTaken * 1000.0 / totalGarageSpaces)) / 10.0;
+
+        List<ParkingReservation> parkingPaidInScope = parkingReservationService.allReservations().stream()
+                .filter(r -> scopeGarageIds.contains(r.getGarageId()))
+                .filter(r -> r.getStatus() != ParkingReservationStatus.CANCELLED)
+                .toList();
+        double totalParkingRevenue = parkingPaidInScope.stream()
+                .mapToDouble(ParkingReservation::getReservationPaymentAmount)
+                .sum();
+        totalParkingRevenue = Math.round(totalParkingRevenue * 100.0) / 100.0;
+        long paidParkingSessions = parkingPaidInScope.size();
+        double averageParkingPayment = paidParkingSessions == 0
+                ? 0.0
+                : Math.round((totalParkingRevenue / paidParkingSessions) * 100.0) / 100.0;
+
+        Map<String, Double> revenueAccum = new TreeMap<>();
+        Map<String, Long> sessionsPerGarage = new TreeMap<>();
+        for (ParkingReservation r : parkingPaidInScope) {
+            revenueAccum.merge(r.getGarageId(), r.getReservationPaymentAmount(), Double::sum);
+            sessionsPerGarage.merge(r.getGarageId(), 1L, Long::sum);
+        }
+        Map<String, Double> parkingRevenueByGarageId = new LinkedHashMap<>();
+        revenueAccum.forEach((k, v) -> parkingRevenueByGarageId.put(k, Math.round(v * 100.0) / 100.0));
+
+        Map<String, Integer> parkingSessionsByGarageId = new LinkedHashMap<>();
+        for (ParkingGarage g : garageList) {
+            int n = sessionsPerGarage.getOrDefault(g.getId(), 0L).intValue();
+            parkingSessionsByGarageId.put(g.getId(), n);
+        }
+
+        List<Map<String, Object>> topParkingGaragesByRevenue = revenueAccum.entrySet().stream()
+                .sorted((a, b) -> Double.compare(b.getValue(), a.getValue()))
+                .limit(5)
+                .map(e -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    String gid = e.getKey();
+                    m.put("garageId", gid);
+                    m.put("garageName", parkingGarageService.getById(gid).map(ParkingGarage::getName).orElse(gid));
+                    m.put("revenue", Math.round(e.getValue() * 100.0) / 100.0);
+                    m.put("paidSessions", sessionsPerGarage.getOrDefault(gid, 0L));
+                    return m;
+                })
+                .toList();
+
+        Map<String, Object> bestParkingGarage = topParkingGaragesByRevenue.isEmpty()
+                ? new LinkedHashMap<>()
+                : new LinkedHashMap<>(topParkingGaragesByRevenue.get(0));
+
+        List<Map<String, Object>> parkingAreaBreakdown = new ArrayList<>();
+        double totalOccupancyImpliedRevenue = 0.0;
+        for (ParkingGarage g : garageList) {
+            int spotsTaken = Math.max(0, g.getTotalSpaces() - g.getAvailableSpaces());
+            int activeRes = activeSpotsByGarage.getOrDefault(g.getId(), 0);
+            double recordedRev = revenueAccum.getOrDefault(g.getId(), 0.0);
+            double flat = Math.max(0.0, g.getFlatRate());
+            double impliedRev = Math.round(spotsTaken * flat * 100.0) / 100.0;
+            totalOccupancyImpliedRevenue += impliedRev;
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("garageId", g.getId());
+            row.put("areaName", g.getName());
+            String addr = g.getAddress();
+            if (addr != null && addr.length() > 52) {
+                addr = addr.substring(0, 50) + "…";
+            }
+            row.put("addressSnippet", addr != null ? addr : "");
+            row.put("spotsTaken", spotsTaken);
+            row.put("spotsTotal", g.getTotalSpaces());
+            row.put("activeReservationSpots", activeRes);
+            row.put("flatRate", Math.round(flat * 100.0) / 100.0);
+            row.put("revenue", Math.round(recordedRev * 100.0) / 100.0);
+            row.put("occupancyImpliedRevenue", impliedRev);
+            row.put("allTimeReservations", parkingSessionsByGarageId.getOrDefault(g.getId(), 0));
+            int tot = g.getTotalSpaces();
+            row.put("capacityUtilizationPercent", tot == 0 ? 0.0 : Math.round((spotsTaken * 1000.0 / tot)) / 10.0);
+            parkingAreaBreakdown.add(row);
+        }
+        parkingAreaBreakdown.sort((a, b) -> Integer.compare((Integer) b.get("allTimeReservations"), (Integer) a.get("allTimeReservations")));
+        totalOccupancyImpliedRevenue = Math.round(totalOccupancyImpliedRevenue * 100.0) / 100.0;
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("totalVehicles", fleet.size());
@@ -271,6 +413,18 @@ public class AnalyticsService {
         result.put("totalAvailableGarageSpaces", availableGarageSpaces);
         result.put("garageUtilizationRate", Math.round(garageUtilization * 10.0) / 10.0 + "%");
         result.put("garageDetails", garageList);
+        result.put("totalParkingRevenue", totalParkingRevenue);
+        result.put("totalOccupancyImpliedRevenue", totalOccupancyImpliedRevenue);
+        result.put("paidParkingSessions", paidParkingSessions);
+        result.put("averageParkingPayment", averageParkingPayment);
+        result.put("parkingRevenueByGarageId", parkingRevenueByGarageId);
+        result.put("parkingSessionsByGarageId", parkingSessionsByGarageId);
+        result.put("topParkingGaragesByRevenue", topParkingGaragesByRevenue);
+        result.put("bestParkingGarage", bestParkingGarage);
+        result.put("totalParkingSpotsTaken", totalParkingSpotsTaken);
+        result.put("activeParkingSpotsInScope", activeParkingSpotsInScope);
+        result.put("parkingCapacityUtilizationPercent", parkingCapacityUtilizationPercent);
+        result.put("parkingAreaBreakdown", parkingAreaBreakdown);
         return result;
     }
 

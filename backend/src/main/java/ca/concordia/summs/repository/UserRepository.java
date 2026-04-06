@@ -11,6 +11,9 @@ import java.util.concurrent.ConcurrentHashMap;
 @Repository
 public class UserRepository {
 
+    /** Stable id for the seeded city admin — municipal garages use this as {@code ParkingGarage#providerId}. */
+    public static final String CITY_ADMIN_USER_ID = "city-admin-id";
+
     private final Map<String, User> store = new ConcurrentHashMap<>();
 
     public UserRepository() {
@@ -56,7 +59,7 @@ public class UserRepository {
         alice.setPaymentInfo("VISA-4242");
         save(alice);
 
-        User admin = new User("City Admin",     "admin@summs.ca", "admin123",    UserRole.CITY_ADMIN);
+        User admin = new User(CITY_ADMIN_USER_ID, "City Admin", "admin@summs.ca", "admin123", UserRole.CITY_ADMIN);
         save(admin);
 
         User carProvider = new User("car-provider-id", "Car Provider", "cars@summs.ca", "cars123", UserRole.MOBILITY_PROVIDER);
@@ -66,6 +69,10 @@ public class UserRepository {
         User scooterProvider = new User("scooter-provider-id", "Scooter Provider", "scooters@summs.ca", "scooters123", UserRole.MOBILITY_PROVIDER);
         scooterProvider.setProviderType("SCOOTER");
         save(scooterProvider);
+
+        User parkingProvider = new User("parking-provider-id", "Parking Provider", "parking@summs.ca", "parking123", UserRole.MOBILITY_PROVIDER);
+        parkingProvider.setProviderType("PARKING");
+        save(parkingProvider);
 
         User sys   = new User("System Admin",   "sys@summs.ca",   "sys123",      UserRole.SYSTEM_ADMIN);
         save(sys);

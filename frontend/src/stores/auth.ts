@@ -27,8 +27,19 @@ export const useAuthStore = defineStore('auth', () => {
   // isAdmin = any elevated admin role (used for shared admin UI sections)
   const isAdmin = computed(() => isCityAdmin.value || isSysAdmin.value)
   const isCitizen = computed(() => user.value?.role === 'CITIZEN')
-  // City admins only see transit/parking — rental data is SYSTEM_ADMIN only
-  const canViewRentalAnalytics = computed(() => isSysAdmin.value || isProvider.value)
+  const isParkingProvider = computed(
+    () => user.value?.role === 'MOBILITY_PROVIDER' && user.value?.providerType === 'PARKING',
+  )
+  // Rental analytics are for vehicle fleets; parking providers use garage tooling instead.
+  const canViewRentalAnalytics = computed(
+    () => isSysAdmin.value || (isProvider.value && !isParkingProvider.value),
+  )
+  // Parking analytics: system admin sees all scopes; city admin and parking operators use the same page scoped to their garages.
+  const canViewParkingAnalytics = computed(() => isAdmin.value || isParkingProvider.value)
+  /** Transit usage dashboard — system and city administrators. */
+  const canViewTransitAnalytics = computed(() => isSysAdmin.value || isCityAdmin.value)
+  /** CRUD on parking garages (municipal inventory for city admin; commercial for parking providers). */
+  const canManageParkingGarages = computed(() => isCityAdmin.value || isParkingProvider.value)
 
   // User registration
   async function register(payload: {
@@ -93,7 +104,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     user, error, loading,
-    isLoggedIn, isProvider, isAdmin, isCityAdmin, isCitizen, isSysAdmin, canViewRentalAnalytics,
+    isLoggedIn, isProvider, isAdmin, isCityAdmin, isCitizen, isSysAdmin, isParkingProvider, canViewRentalAnalytics, canViewParkingAnalytics, canViewTransitAnalytics, canManageParkingGarages,
     register, login, logout, updateProfile, fetchUserProfile,
   }
 })

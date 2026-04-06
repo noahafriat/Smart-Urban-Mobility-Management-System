@@ -1,5 +1,5 @@
 <script setup lang="ts">
-
+import ParkingGarageManager from '../components/ParkingGarageManager.vue'
 import ProviderFleetManager from '../components/ProviderFleetManager.vue'
 import { useAuthStore } from '../stores/auth'
 
@@ -17,7 +17,7 @@ const auth = useAuthStore()
       </div>
     </header>
 
-    <main class="dash-content" :class="{ 'provider-layout': auth.isProvider }">
+    <main class="dash-content" :class="{ 'provider-layout': auth.isProvider || auth.canManageParkingGarages }">
       <!-- ── Citizen Interaction Hub ── -->
       <!-- Commute / Search (Typically for Citizens/Renters) -->
       <div class="card" v-if="auth.isCitizen">
@@ -74,8 +74,8 @@ const auth = useAuthStore()
         </div>
       </div>
 
-      <!-- ── Provider Specific Tools ── -->
-      <div class="card provider-main-card" v-if="auth.isProvider">
+      <!-- ── Vehicle provider fleet ── -->
+      <div class="card provider-main-card" v-if="auth.isProvider && !auth.isParkingProvider">
         <header class="card-header">
            <div class="icon-box">{{ auth.user?.providerType === 'CAR' ? '🚗' : '🛴' }}</div>
            <div class="header-text">
@@ -84,6 +84,24 @@ const auth = useAuthStore()
            </div>
         </header>
         <ProviderFleetManager v-if="auth.user" :provider-id="auth.user.id" />
+      </div>
+
+      <!-- ── Municipal or commercial parking operator ── -->
+      <div class="card provider-main-card" v-if="auth.canManageParkingGarages && auth.user">
+        <header class="card-header">
+          <div class="icon-box">🅿️</div>
+          <div class="header-text">
+            <h2>{{ auth.isCityAdmin ? 'Municipal parking facilities' : 'Garage operations' }}</h2>
+            <p>
+              {{
+                auth.isCityAdmin
+                  ? 'Add and edit city-owned garages, capacity, and live availability.'
+                  : 'Add locations, set capacity, and monitor your garage availability.'
+              }}
+            </p>
+          </div>
+        </header>
+        <ParkingGarageManager :provider-id="auth.user.id" />
       </div>
       
       <div class="card" v-if="auth.isCitizen">
@@ -113,17 +131,25 @@ const auth = useAuthStore()
       </div>
     </main>
 
-    <!-- ── Administrative Hub ── -->
-    <div v-if="auth.isAdmin || auth.isSysAdmin" class="admin-container">
+    <!-- ── Administrative / operator hub ── -->
+    <div v-if="auth.isAdmin || auth.isSysAdmin || auth.isParkingProvider" class="admin-container">
       <header class="hub-header">
-        <div class="governance-badge">Admin Tools</div>
-        <h2>Admin Hub</h2>
-        <p>Monitor transit, rentals, and manage user roles.</p>
+        <div class="governance-badge">{{ auth.isParkingProvider && !auth.isAdmin ? 'Operator tools' : 'Admin Tools' }}</div>
+        <h2>{{ auth.isParkingProvider && !auth.isAdmin ? 'Parking operator hub' : 'Admin Hub' }}</h2>
+        <p>
+          {{
+            auth.isParkingProvider && !auth.isAdmin
+              ? 'Capacity and occupancy for your garages — same analytics view as city oversight, limited to your account.'
+              : auth.isCityAdmin && !auth.isSysAdmin
+                ? 'Municipal parking, transit usage, and analytics for facilities you manage.'
+                : 'Monitor transit, rentals, and manage user roles.'
+          }}
+        </p>
       </header>
 
       <div class="admin-grid">
         <!-- Transit Stats -->
-        <div v-if="auth.isAdmin" class="card admin-feature">
+        <div v-if="auth.canViewTransitAnalytics" class="card admin-feature">
           <header class="card-header">
             <div class="icon-box info">🚍</div>
             <div class="header-text">
@@ -151,12 +177,20 @@ const auth = useAuthStore()
         </div>
 
         <!-- Parking Stats -->
-        <div v-if="auth.isAdmin" class="card admin-feature">
+        <div v-if="auth.canViewParkingAnalytics" class="card admin-feature">
           <header class="card-header">
             <div class="icon-box warning">🅿️</div>
             <div class="header-text">
               <h2>Parking Analytics</h2>
-              <p>Check the live capacity and open spots in city garages.</p>
+              <p>
+                {{
+                  auth.canManageParkingGarages
+                    ? auth.isCityAdmin
+                      ? 'Live capacity and occupancy for municipal garages you manage.'
+                      : 'Live capacity and occupancy for your garages only.'
+                    : 'Check the live capacity and open spots in city garages.'
+                }}
+              </p>
             </div>
           </header>
           <div class="card-footer">
