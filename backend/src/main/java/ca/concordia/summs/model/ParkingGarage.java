@@ -1,7 +1,8 @@
 package ca.concordia.summs.model;
 
 /**
- * City-owned garages use {@link #CITY_INFRA_PROVIDER_ID} as {@code providerId}.
+ * Municipal garages use the seeded city admin account id (see {@code UserRepository.CITY_ADMIN_USER_ID}).
+ * {@link #CITY_INFRA_PROVIDER_ID} is a legacy marker still accepted for filtering and defaults.
  */
 public class ParkingGarage {
 

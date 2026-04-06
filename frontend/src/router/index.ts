@@ -84,11 +84,11 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
-      // Transit Analytics (Admin)
+      // Transit Analytics (System Admin only)
       path: '/analytics/transit',
       name: 'analytics-transit',
       component: () => import('../views/TransitAnalyticsView.vue'),
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, transitAnalytics: true },
     },
     {
       // Epic 4: Rental Service Analytics (System Admin + Providers only — NOT City Admin)
@@ -98,11 +98,11 @@ const router = createRouter({
       meta: { requiresAuth: true, rentalAnalyticsOnly: true },
     },
     {
-      // Parking Analytics (Admin)
+      // Parking Analytics (City / System admin + parking operators — operators are scoped to own garages)
       path: '/analytics/parking',
       name: 'analytics-parking',
       component: () => import('../views/ParkingAnalyticsView.vue'),
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, parkingAnalytics: true },
     },
     {
       // User Role Management (System Admin only)
@@ -126,8 +126,11 @@ router.beforeEach((to, from, next) => {
   ) {
     next('/dashboard')
   } else if (to.meta.rentalAnalyticsOnly && !auth.canViewRentalAnalytics) {
-    // City Admins must not access rental/payment data — redirect to their transit view
-    next('/analytics/transit')
+    next('/dashboard')
+  } else if (to.meta.transitAnalytics && !auth.canViewTransitAnalytics) {
+    next('/dashboard')
+  } else if (to.meta.parkingAnalytics && !auth.canViewParkingAnalytics) {
+    next('/dashboard')
   } else if ((to.path === '/login' || to.path === '/register') && auth.isLoggedIn) {
     next('/dashboard')
   } else {

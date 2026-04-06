@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * Parking & Infrastructure Analytics (Stationary garages)
- * Visible to: City Admin, System Admin — scope by city facilities or parking provider (like rental analytics).
+ * Visible to: System Admin (full scope), City Admin and parking operators (same KPIs, own garages only).
  */
 import { computed, onMounted, ref } from 'vue'
 import { api } from '../api'
@@ -42,12 +42,23 @@ const filteredParkingProviders = computed(() => {
   )
 })
 
+const portfolioLocked = computed(() => auth.canManageParkingGarages)
+
 const scopeLabel = computed(() => {
+  if (portfolioLocked.value && auth.user) {
+    return auth.isCityAdmin
+      ? `${auth.user.name} (municipal facilities)`
+      : `${auth.user.name} (your facilities)`
+  }
   if (selectedGarageScopeId.value === '') return 'Everyone'
   if (selectedGarageScopeId.value === CITY_SCOPE) return 'City facilities'
   const p = parkingProviders.value.find((x) => x.id === selectedGarageScopeId.value)
   return p?.name ?? 'Selected provider'
 })
+
+const garageScopeKey = computed(() =>
+  portfolioLocked.value && auth.user ? auth.user.id : selectedGarageScopeId.value,
+)
 
 function syncSearchLabelToScope(scopeId: string) {
   if (scopeId === '') {
@@ -75,17 +86,24 @@ function pctFull(g: { totalSpaces: number; availableSpaces: number }): string {
 }
 
 async function refreshParking() {
+  const uid = auth.user?.id
+  if (portfolioLocked.value && uid) {
+    await store.fetchParking(undefined, uid, uid)
+    return
+  }
   const g = selectedGarageScopeId.value
   await store.fetchParking(undefined, g === '' ? undefined : g)
 }
 
 function selectGarageScope(scopeId: string) {
+  if (portfolioLocked.value) return
   selectedGarageScopeId.value = scopeId
   syncSearchLabelToScope(scopeId)
   void store.fetchParking(undefined, scopeId === '' ? undefined : scopeId)
 }
 
 function onProviderSearchInput(ev: Event) {
+  if (portfolioLocked.value) return
   if (!(ev instanceof InputEvent) || !ev.isTrusted) return
   if (!providerSearch.value.trim()) {
     selectedGarageScopeId.value = ''
@@ -112,6 +130,12 @@ async function loadUsers() {
 }
 
 onMounted(async () => {
+  if (portfolioLocked.value && auth.user) {
+    selectedGarageScopeId.value = auth.user.id
+    providerSearch.value = auth.user.name ?? ''
+    await refreshParking()
+    return
+  }
   await loadUsers()
   await refreshParking()
 })
@@ -126,7 +150,15 @@ onMounted(async () => {
           <span class="scope-pill parking">Garage scope</span>
         </div>
         <h1>Stationary Parking Infrastructure</h1>
-        <p>Real-time capacity for garages — filter by city-owned facilities or a parking operator.</p>
+        <p>
+          {{
+            portfolioLocked
+              ? auth.isCityAdmin
+                ? 'Real-time capacity for municipal garages you manage.'
+                : 'Real-time capacity for your registered garages.'
+              : 'Real-time capacity for garages — filter by city-owned facilities or a parking operator.'
+          }}
+        </p>
       </div>
       <div class="header-actions">
         <button class="btn-refresh" :disabled="store.loading" @click="refreshParking()">
@@ -142,7 +174,29 @@ onMounted(async () => {
     <div v-else-if="store.error" class="state-msg error">{{ store.error }}</div>
 
     <main v-else-if="store.parkingData" class="analytics-body">
-      <section v-if="auth.isAdmin" class="scope-toolbar panel-card-clean">
+      <section v-if="portfolioLocked" class="scope-toolbar panel-card-clean">
+        <div class="scope-toolbar-grid">
+          <div class="scope-field">
+            <label class="field-label">{{ auth.isCityAdmin ? 'Municipal facilities' : 'Your facilities' }}</label>
+            <p class="field-hint">
+              <template v-if="auth.isCityAdmin">
+                Same analytics layout as system oversight, but <strong>only municipal garages on your account</strong> are
+                included. Private parking operators are not shown.
+              </template>
+              <template v-else>
+                This view matches the city oversight dashboard but is <strong>limited to garages you operate</strong>.
+                Other operators’ data is not shown.
+              </template>
+            </p>
+          </div>
+          <div class="scope-meta">
+            <span class="meta-label">Scope</span>
+            <strong class="meta-value">{{ scopeLabel }}</strong>
+          </div>
+        </div>
+      </section>
+
+      <section v-else-if="auth.isSysAdmin" class="scope-toolbar panel-card-clean">
         <div class="scope-toolbar-grid">
           <div class="scope-field">
             <label class="field-label" for="parking-provider-search">Garage operator scope</label>
@@ -240,7 +294,7 @@ onMounted(async () => {
             <div class="garage-list-clean">
               <div
                 v-for="garage in store.parkingData.garageDetails"
-                :key="`${selectedGarageScopeId}-${garage.id}`"
+                :key="`${garageScopeKey}-${garage.id}`"
                 class="garage-row"
               >
                 <div class="info">

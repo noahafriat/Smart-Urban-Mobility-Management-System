@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * Transit Usage Analytics
- * Visible to: City Admin, System Admin
+ * Visible to: System Admin only
  */
 import { computed, onMounted } from 'vue'
 import { useAnalyticsStore } from '../stores/analytics'

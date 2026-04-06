@@ -105,7 +105,7 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     }
   }
 
-  async function fetchParking(providerId?: string, garageProviderId?: string) {
+  async function fetchParking(providerId?: string, garageProviderId?: string, requesterId?: string) {
     const seq = ++parkingFetchSeq
     loading.value = true
     error.value = null
@@ -113,6 +113,7 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       const params: Record<string, string> = {}
       if (providerId) params.providerId = providerId
       if (garageProviderId) params.garageProviderId = garageProviderId
+      if (requesterId) params.requesterId = requesterId
       const res = await api.get('/analytics/parking', { params })
       if (seq !== parkingFetchSeq) return
       const raw = res.data as ParkingAnalytics

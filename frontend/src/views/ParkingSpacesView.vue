@@ -4,6 +4,10 @@ import { useRoute } from 'vue-router'
 import { api } from '../api'
 import { useAuthStore } from '../stores/auth'
 
+function isMunicipalGarage(providerId?: string | null): boolean {
+  return !providerId || providerId === '__CITY__' || providerId === 'city-admin-id'
+}
+
 interface ParkingGarage {
   id: string
   providerId?: string
@@ -25,8 +29,6 @@ interface EnrichedReservation {
   endTime: string
 }
 
-const CITY_INFRA = '__CITY__'
-
 const auth = useAuthStore()
 const garages = ref<ParkingGarage[]>([])
 const loading = ref(true)
@@ -43,7 +45,7 @@ const activeReservations = computed(() =>
 )
 
 function labelForGarage(g: ParkingGarage) {
-  if (!g.providerId || g.providerId === CITY_INFRA) return 'City facility'
+  if (isMunicipalGarage(g.providerId)) return 'City facility'
   return 'Partner garage'
 }
 

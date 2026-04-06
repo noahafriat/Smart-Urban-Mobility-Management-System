@@ -30,15 +30,15 @@ public class ParkingGarageService {
     }
 
     private void seed() {
-        addInternal(new ParkingGarage("pg1", ParkingGarage.CITY_INFRA_PROVIDER_ID, "Eaton Centre Parking",
+        addInternal(new ParkingGarage("pg1", UserRepository.CITY_ADMIN_USER_ID, "Eaton Centre Parking",
                 "705 Sainte-Catherine Ouest, Montreal", 45.5035, -73.5714, 250, 42));
-        addInternal(new ParkingGarage("pg2", ParkingGarage.CITY_INFRA_PROVIDER_ID, "Quartier des Spectacles Auto-Parc",
+        addInternal(new ParkingGarage("pg2", UserRepository.CITY_ADMIN_USER_ID, "Quartier des Spectacles Auto-Parc",
                 "1435 Rue de Bleury, Montreal", 45.5088, -73.5658, 400, 115));
-        addInternal(new ParkingGarage("pg3", ParkingGarage.CITY_INFRA_PROVIDER_ID, "Old Port Clock Tower Parking",
+        addInternal(new ParkingGarage("pg3", UserRepository.CITY_ADMIN_USER_ID, "Old Port Clock Tower Parking",
                 "1 Quai de l'Horloge, Montreal", 45.5103, -73.5484, 500, 320));
-        addInternal(new ParkingGarage("pg4", ParkingGarage.CITY_INFRA_PROVIDER_ID, "Bell Centre Garage",
+        addInternal(new ParkingGarage("pg4", UserRepository.CITY_ADMIN_USER_ID, "Bell Centre Garage",
                 "1225 Avenue des Canadiens-de-Montreal, Montreal", 45.4960, -73.5693, 300, 10));
-        addInternal(new ParkingGarage("pg5", ParkingGarage.CITY_INFRA_PROVIDER_ID, "Plateau Station Parking",
+        addInternal(new ParkingGarage("pg5", UserRepository.CITY_ADMIN_USER_ID, "Plateau Station Parking",
                 "4100 Rue Saint-Denis, Montreal", 45.5230, -73.5851, 150, 90));
     }
 
@@ -77,7 +77,7 @@ public class ParkingGarageService {
     }
 
     public ParkingGarage createGarage(String providerId, Map<String, Object> body) {
-        requireParkingProvider(providerId);
+        requireGarageAuthority(providerId);
         String name = requireString(body.get("name"), "name");
         String address = requireString(body.get("address"), "address");
         double lat = requireDouble(body.get("latitude"), "latitude");
@@ -96,7 +96,7 @@ public class ParkingGarageService {
     }
 
     public ParkingGarage updateGarage(String providerId, String garageId, Map<String, Object> body) {
-        requireParkingProvider(providerId);
+        requireGarageAuthority(providerId);
         ParkingGarage g = requireGarage(garageId);
         if (!providerId.equals(g.getProviderId())) {
             throw new IllegalArgumentException("This garage belongs to another provider.");
@@ -118,7 +118,7 @@ public class ParkingGarageService {
     }
 
     public void deleteGarage(String providerId, String garageId) {
-        requireParkingProvider(providerId);
+        requireGarageAuthority(providerId);
         ParkingGarage g = requireGarage(garageId);
         if (!providerId.equals(g.getProviderId())) {
             throw new IllegalArgumentException("This garage belongs to another provider.");
@@ -129,13 +129,17 @@ public class ParkingGarageService {
         garagesById.remove(garageId);
     }
 
-    private void requireParkingProvider(String providerId) {
-        User u = userRepository.findById(providerId)
+    private void requireGarageAuthority(String userId) {
+        User u = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Unknown user."));
-        if (u.getRole() != UserRole.MOBILITY_PROVIDER || u.getProviderType() == null
-                || !"PARKING".equalsIgnoreCase(u.getProviderType())) {
-            throw new IllegalArgumentException("Only parking providers can manage garages.");
+        if (u.getRole() == UserRole.CITY_ADMIN) {
+            return;
         }
+        if (u.getRole() == UserRole.MOBILITY_PROVIDER && u.getProviderType() != null
+                && "PARKING".equalsIgnoreCase(u.getProviderType())) {
+            return;
+        }
+        throw new IllegalArgumentException("Only city administrators or parking providers can manage garages.");
     }
 
     private static String requireString(Object v, String field) {

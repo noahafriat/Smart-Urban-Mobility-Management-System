@@ -2,6 +2,8 @@ package ca.concordia.summs.service;
 
 import ca.concordia.summs.model.Rental;
 import ca.concordia.summs.model.RentalStatus;
+import ca.concordia.summs.model.User;
+import ca.concordia.summs.model.UserRole;
 import ca.concordia.summs.model.Vehicle;
 import ca.concordia.summs.model.VehicleStatus;
 import ca.concordia.summs.pattern.singleton.AnalyticsEngine;
@@ -217,11 +219,34 @@ public class AnalyticsService {
      *                         {@link ParkingGarage#CITY_INFRA_PROVIDER_ID} = city-owned only,
      *                         or a parking-provider user id
      */
-    public Map<String, Object> getParkingAnalytics(String vehicleProviderId, String garageProviderId) {
-        boolean providerScoped = vehicleProviderId != null && !vehicleProviderId.isBlank();
+    public Map<String, Object> getParkingAnalytics(String vehicleProviderId, String garageProviderId, String requesterId) {
+        boolean parkingOperatorSelfView = false;
+        String effectiveGarageProviderId = garageProviderId;
+        String effectiveVehicleProviderId = vehicleProviderId;
+        if (requesterId != null && !requesterId.isBlank()) {
+            Optional<User> viewer = userRepository.findById(requesterId.trim());
+            if (viewer.isPresent()) {
+                User vu = viewer.get();
+                boolean parkingOperator = vu.getRole() == UserRole.MOBILITY_PROVIDER
+                        && vu.getProviderType() != null
+                        && "PARKING".equalsIgnoreCase(vu.getProviderType());
+                boolean cityAdmin = vu.getRole() == UserRole.CITY_ADMIN;
+                if (parkingOperator || cityAdmin) {
+                    parkingOperatorSelfView = true;
+                    effectiveGarageProviderId = vu.getId();
+                    effectiveVehicleProviderId = null;
+                }
+            }
+        }
 
-        List<Vehicle> fleet = vehicleRepository.findAll().stream()
-                .filter(v -> !providerScoped || v.getProviderId().equalsIgnoreCase(vehicleProviderId))
+        final String vehicleFilter = effectiveVehicleProviderId;
+        boolean providerScoped = !parkingOperatorSelfView
+                && vehicleFilter != null && !vehicleFilter.isBlank();
+
+        List<Vehicle> fleet = parkingOperatorSelfView
+                ? List.of()
+                : vehicleRepository.findAll().stream()
+                .filter(v -> !providerScoped || v.getProviderId().equalsIgnoreCase(vehicleFilter))
                 .toList();
 
         // Vehicles parked (= available) per zone
@@ -258,11 +283,12 @@ public class AnalyticsService {
         double utilizationRate = totalActive == 0 ? 0.0 : ((totalActive - totalAvailable) * 100.0 / totalActive);
 
         List<ParkingGarage> garageList = new ArrayList<>(parkingGarageService.getAllGarages());
-        if (garageProviderId != null && !garageProviderId.isBlank()) {
-            String gp = garageProviderId.trim();
+        if (effectiveGarageProviderId != null && !effectiveGarageProviderId.isBlank()) {
+            String gp = effectiveGarageProviderId.trim();
             if (ParkingGarage.CITY_INFRA_PROVIDER_ID.equals(gp)) {
                 garageList = garageList.stream()
-                        .filter(g -> ParkingGarage.CITY_INFRA_PROVIDER_ID.equals(g.getProviderId()))
+                        .filter(g -> ParkingGarage.CITY_INFRA_PROVIDER_ID.equals(g.getProviderId())
+                                || UserRepository.CITY_ADMIN_USER_ID.equals(g.getProviderId()))
                         .toList();
             } else {
                 garageList = garageList.stream()

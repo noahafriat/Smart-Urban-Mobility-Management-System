@@ -7,6 +7,11 @@ import 'leaflet/dist/leaflet.css'
 import type { Vehicle } from '../stores/vehicles'
 import { useAuthStore } from '../stores/auth'
 
+/** Municipal garages: missing id, legacy `__CITY__`, or seeded city admin id. */
+function isMunicipalGarage(providerId?: string | null): boolean {
+  return !providerId || providerId === '__CITY__' || providerId === 'city-admin-id'
+}
+
 interface BixiStation {
   stationId: string
   name: string
@@ -56,8 +61,6 @@ const showGarages = ref(true)
 const showMyParkingGarages = ref(true)
 const showOtherParkingGarages = ref(true)
 
-const CITY_INFRA = '__CITY__'
-
 let map: L.Map | null = null
 let carsLayer: L.LayerGroup | null = null
 let scootersLayer: L.LayerGroup | null = null
@@ -67,19 +70,23 @@ let myParkingLayer: L.LayerGroup | null = null
 let otherParkingLayer: L.LayerGroup | null = null
 const focusZoomLevel = 16
 
-const isParkingProviderViewer = computed(
-  () => auth.user?.providerType === 'PARKING' && !!auth.user?.id,
+/** City admin or parking provider: split map into “mine” vs everyone else’s garages. */
+const garagePortfolioViewer = computed(
+  () =>
+    !!auth.user?.id &&
+    (auth.user?.role === 'CITY_ADMIN' ||
+      (auth.user?.providerType === 'PARKING' && auth.user?.role === 'MOBILITY_PROVIDER')),
 )
 
 const myParkingGarages = computed(() => {
   const uid = auth.user?.id
-  if (!isParkingProviderViewer.value || !uid) return []
+  if (!garagePortfolioViewer.value || !uid) return []
   return garages.value.filter((g) => g.providerId === uid)
 })
 
 const otherParkingGarages = computed(() => {
   const uid = auth.user?.id
-  if (!isParkingProviderViewer.value || !uid) return []
+  if (!garagePortfolioViewer.value || !uid) return []
   return garages.value.filter((g) => g.providerId !== uid)
 })
 
@@ -129,6 +136,12 @@ onMounted(async () => {
       showMyParkingGarages.value = true
       showOtherParkingGarages.value = true
     }
+  } else if (auth.user?.role === 'CITY_ADMIN') {
+    showCars.value = false
+    showScooters.value = false
+    showBixi.value = false
+    showMyParkingGarages.value = true
+    showOtherParkingGarages.value = true
   }
 
   await fetchData()
@@ -258,13 +271,12 @@ function renderLayers() {
   }
 
   function bindGaragePopup(garage: ParkingGarage, label: string) {
-    const src =
-      !garage.providerId || garage.providerId === CITY_INFRA ? 'City' : 'Partner'
+    const src = isMunicipalGarage(garage.providerId) ? 'City' : 'Partner'
     const addr = garage.address ? `<br><small>${garage.address}</small>` : ''
     return `<strong>${garage.name}</strong> <span style="opacity:.75">(${label} · ${src})</span>${addr}<br>Available: ${garage.availableSpaces} / ${garage.totalSpaces}<br><br><button data-path="/parking-spaces?selectedId=${garage.id}" class="popup-btn">View details →</button>`
   }
 
-  if (isParkingProviderViewer.value) {
+  if (garagePortfolioViewer.value) {
     for (const garage of myParkingGarages.value) {
       const marker = L.circleMarker([garage.latitude, garage.longitude], {
         radius: 9,
@@ -303,8 +315,7 @@ function renderLayers() {
     }
   } else {
     for (const garage of garages.value) {
-      const src =
-        !garage.providerId || garage.providerId === CITY_INFRA ? 'City' : 'Partner'
+      const src = isMunicipalGarage(garage.providerId) ? 'City' : 'Partner'
       const addr = garage.address ? `<br><small>${garage.address}</small>` : ''
       const marker = L.circleMarker([garage.latitude, garage.longitude], {
         radius: 8,
@@ -326,7 +337,7 @@ function renderLayers() {
   if (showCars.value) carsLayer.addTo(map)
   if (showScooters.value) scootersLayer.addTo(map)
   if (showBixi.value) bixiLayer.addTo(map)
-  if (isParkingProviderViewer.value) {
+  if (garagePortfolioViewer.value) {
     if (showMyParkingGarages.value) myParkingLayer.addTo(map)
     if (showOtherParkingGarages.value) otherParkingLayer.addTo(map)
   } else if (showGarages.value) {
@@ -361,8 +372,8 @@ async function refreshMapData() {
       <div>
         <h1>Mobility Map</h1>
         <p>
-          <template v-if="isParkingProviderViewer">
-            Your garages are cyan; city and other operators are orange. Toggle each group below.
+          <template v-if="garagePortfolioViewer">
+            Garages you manage are cyan; other operators are orange. Toggle each group below.
           </template>
           <template v-else>Cars, scooters, BIXI, and parking in one live view.</template>
         </p>
@@ -376,7 +387,7 @@ async function refreshMapData() {
       <label v-if="!auth.isProvider || auth.user?.providerType === 'CAR'"><input v-model="showCars" type="checkbox" @change="toggleLayer" /> <span class="dot car"></span> Cars ({{ cars.length }})</label>
       <label v-if="!auth.isProvider || auth.user?.providerType === 'SCOOTER'"><input v-model="showScooters" type="checkbox" @change="toggleLayer" /> <span class="dot scooter"></span> Scooter docks ({{ scooterDocks.length }})</label>
       <label v-if="!auth.isProvider"><input v-model="showBixi" type="checkbox" @change="toggleLayer" /> <span class="dot bixi"></span> BIXI stations ({{ stations.length }})</label>
-      <template v-if="isParkingProviderViewer">
+      <template v-if="garagePortfolioViewer">
         <label>
           <input v-model="showMyParkingGarages" type="checkbox" @change="toggleLayer" />
           <span class="dot garage-mine"></span> My garages ({{ myParkingGarages.length }})
