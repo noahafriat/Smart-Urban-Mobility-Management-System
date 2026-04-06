@@ -11,6 +11,7 @@ export interface ParkingGarageRow {
   longitude: number
   totalSpaces: number
   availableSpaces: number
+  flatRate?: number
 }
 
 const props = defineProps<{
@@ -36,6 +37,7 @@ const form = reactive({
   latitude: 45.5019,
   longitude: -73.5674,
   totalSpaces: 50,
+  flatRate: 0,
 })
 
 async function loadAll() {
@@ -66,6 +68,7 @@ function openCreate() {
   form.latitude = 45.5019
   form.longitude = -73.5674
   form.totalSpaces = 50
+  form.flatRate = 0
   showForm.value = true
 }
 
@@ -76,6 +79,7 @@ function openEdit(g: ParkingGarageRow) {
   form.latitude = g.latitude
   form.longitude = g.longitude
   form.totalSpaces = g.totalSpaces
+  form.flatRate = typeof g.flatRate === 'number' ? g.flatRate : 0
   showForm.value = true
 }
 
@@ -91,6 +95,7 @@ async function submitForm() {
     latitude: form.latitude,
     longitude: form.longitude,
     totalSpaces: form.totalSpaces,
+    flatRate: Math.max(0, Number(form.flatRate) || 0),
   }
   try {
     if (editingId.value) {
@@ -162,6 +167,9 @@ function occupied(g: ParkingGarageRow) {
           <span class="pill">{{ g.availableSpaces }} / {{ g.totalSpaces }} free</span>
         </header>
         <p class="addr">📍 {{ g.address }}</p>
+        <p class="rate-line">
+          Flat rate: <strong>${{ (typeof g.flatRate === 'number' ? g.flatRate : 0).toFixed(2) }}</strong>
+        </p>
         <p class="coords">{{ g.latitude.toFixed(4) }}, {{ g.longitude.toFixed(4) }} · {{ occupied(g) }} occupied</p>
         <div class="card-actions">
           <RouterLink
@@ -189,7 +197,7 @@ function occupied(g: ParkingGarageRow) {
               </label>
               <label class="wide">
                 Address
-                <input v-model="form.address" required />
+                <input v-model="form.address" required placeholder="Street address for display" />
               </label>
               <label>
                 Latitude
@@ -198,6 +206,10 @@ function occupied(g: ParkingGarageRow) {
               <label>
                 Longitude
                 <input v-model.number="form.longitude" type="number" step="any" required />
+              </label>
+              <label>
+                Flat rate ($)
+                <input v-model.number="form.flatRate" type="number" min="0" step="0.01" required />
               </label>
               <label>
                 Total spaces
@@ -332,6 +344,16 @@ function occupied(g: ParkingGarageRow) {
   margin: 0.5rem 0 0.15rem;
   color: #475569;
   font-size: 0.9rem;
+}
+
+.rate-line {
+  margin: 0.25rem 0 0.15rem;
+  font-size: 0.9rem;
+  color: #475569;
+}
+
+.rate-line strong {
+  color: #0f172a;
 }
 
 .coords {

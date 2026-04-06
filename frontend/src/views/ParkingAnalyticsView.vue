@@ -3,7 +3,8 @@
  * Parking & Infrastructure Analytics (Stationary garages)
  * Visible to: System Admin (full scope), City Admin and parking operators (same KPIs, own garages only).
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { api } from '../api'
 import { useAnalyticsStore } from '../stores/analytics'
 import { useAuthStore } from '../stores/auth'
@@ -20,6 +21,7 @@ interface UserOption {
 
 const store = useAnalyticsStore()
 const auth = useAuthStore()
+const route = useRoute()
 
 const users = ref<UserOption[]>([])
 const usersLoadError = ref<string | null>(null)
@@ -56,10 +58,6 @@ const scopeLabel = computed(() => {
   return p?.name ?? 'Selected provider'
 })
 
-const garageScopeKey = computed(() =>
-  portfolioLocked.value && auth.user ? auth.user.id : selectedGarageScopeId.value,
-)
-
 function syncSearchLabelToScope(scopeId: string) {
   if (scopeId === '') {
     providerSearch.value = ''
@@ -73,16 +71,88 @@ function syncSearchLabelToScope(scopeId: string) {
   providerSearch.value = p ? p.name : ''
 }
 
-function availabilityColor(available: number, total: number): string {
-  const percent = total === 0 ? 0 : (available / total) * 100
-  if (percent > 40) return 'green'
-  if (percent > 15) return 'orange'
-  return 'red'
+function truncateAddr(addr: string, maxLen = 50): string {
+  if (addr.length <= maxLen) return addr
+  return `${addr.slice(0, maxLen)}…`
 }
 
-function pctFull(g: { totalSpaces: number; availableSpaces: number }): string {
-  if (!g.totalSpaces) return '—'
-  return (((g.totalSpaces - g.availableSpaces) / g.totalSpaces) * 100).toFixed(0)
+/** Prefer API breakdown; otherwise derive from garageDetails so charts work with older backends or empty arrays. */
+const parkingAreaRows = computed(() => {
+  const data = store.parkingData
+  if (!data) return []
+
+  const raw = data.parkingAreaBreakdown
+  if (Array.isArray(raw) && raw.length > 0) {
+    return raw.map((r) => {
+      const spotsTaken = Number(r.spotsTaken) || 0
+      const flat = Number(r.flatRate) || 0
+      const implied =
+        typeof r.occupancyImpliedRevenue === 'number' && Number.isFinite(r.occupancyImpliedRevenue)
+          ? r.occupancyImpliedRevenue
+          : Math.round(spotsTaken * flat * 100) / 100
+      return {
+        garageId: String(r.garageId ?? ''),
+        areaName: String(r.areaName ?? ''),
+        addressSnippet: r.addressSnippet != null ? String(r.addressSnippet) : '',
+        spotsTaken,
+        spotsTotal: Number(r.spotsTotal) || 0,
+        activeReservationSpots: Number(r.activeReservationSpots) || 0,
+        revenue: Number(r.revenue) || 0,
+        occupancyImpliedRevenue: implied,
+        flatRate: flat,
+        capacityUtilizationPercent: Number(r.capacityUtilizationPercent) || 0,
+      }
+    })
+  }
+
+  const gd = data.garageDetails ?? []
+  const revMap = data.parkingRevenueByGarageId ?? {}
+  if (gd.length === 0) return []
+
+  return gd.map((g) => {
+    const tot = Number(g.totalSpaces) || 0
+    const avail = Number(g.availableSpaces) || 0
+    const spotsTaken = Math.max(0, tot - avail)
+    const flat = Number(g.flatRate) || 0
+    const implied = Math.round(spotsTaken * flat * 100) / 100
+    const rev = typeof revMap[g.id] === 'number' ? revMap[g.id]! : 0
+    const addr = g.address ? truncateAddr(String(g.address)) : ''
+    const util = tot === 0 ? 0 : Math.round((spotsTaken * 1000) / tot) / 10
+    return {
+      garageId: String(g.id ?? ''),
+      areaName: String(g.name ?? ''),
+      addressSnippet: addr,
+      spotsTaken,
+      spotsTotal: tot,
+      activeReservationSpots: 0,
+      revenue: rev,
+      occupancyImpliedRevenue: implied,
+      flatRate: flat,
+      capacityUtilizationPercent: util,
+    }
+  })
+})
+
+const maxSpotsTaken = computed(() =>
+  parkingAreaRows.value.reduce((m, r) => Math.max(m, r.spotsTaken), 0),
+)
+const maxImpliedRevenue = computed(() =>
+  parkingAreaRows.value.reduce((m, r) => Math.max(m, r.occupancyImpliedRevenue), 0),
+)
+
+const totalImpliedRevenueKpi = computed(() => {
+  const t = store.parkingData?.totalOccupancyImpliedRevenue
+  if (typeof t === 'number' && Number.isFinite(t)) return t
+  return Math.round(parkingAreaRows.value.reduce((s, r) => s + r.occupancyImpliedRevenue, 0) * 100) / 100
+})
+const maxActiveSpots = computed(() =>
+  parkingAreaRows.value.reduce((m, r) => Math.max(m, r.activeReservationSpots), 0),
+)
+
+function barPct(value: number, max: number): number {
+  if (!Number.isFinite(value) || value <= 0) return 0
+  const cap = !max || !Number.isFinite(max) ? 1 : max
+  return Math.min(100, (value / cap) * 100)
 }
 
 async function refreshParking() {
@@ -129,7 +199,14 @@ async function loadUsers() {
   }
 }
 
+function refetchIfParkingTabVisible() {
+  if (route.path !== '/analytics/parking') return
+  if (document.visibilityState !== 'visible') return
+  void refreshParking()
+}
+
 onMounted(async () => {
+  document.addEventListener('visibilitychange', refetchIfParkingTabVisible)
   if (portfolioLocked.value && auth.user) {
     selectedGarageScopeId.value = auth.user.id
     providerSearch.value = auth.user.name ?? ''
@@ -138,6 +215,10 @@ onMounted(async () => {
   }
   await loadUsers()
   await refreshParking()
+})
+
+onUnmounted(() => {
+  document.removeEventListener('visibilitychange', refetchIfParkingTabVisible)
 })
 </script>
 
@@ -258,62 +339,171 @@ onMounted(async () => {
         </div>
       </section>
 
-      <!-- ── Capacity KPIs ── -->
       <section class="kpi-banner">
         <div class="kpi-grid">
           <div class="kpi-card-simple">
-            <span class="label">Garages in scope</span>
-            <strong class="value">{{ store.parkingData.totalGarages }}</strong>
-            <span class="subtext">Facilities counted</span>
+            <span class="label">Total spots taken</span>
+            <strong class="value">{{ store.parkingData.totalParkingSpotsTaken ?? 0 }}</strong>
+            <span class="subtext"
+              >{{ store.parkingData.activeParkingSpotsInScope ?? 0 }} actively held in live reservations</span
+            >
           </div>
           <div class="kpi-card-simple">
-            <span class="label">Total capacity</span>
-            <strong class="value">{{ store.parkingData.totalGarageSpaces }}</strong>
-            <span class="subtext">Spots monitored</span>
+            <span class="label">Value at flat rate (occupied)</span>
+            <strong class="value"
+              >${{
+                totalImpliedRevenueKpi.toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })
+              }}</strong
+            >
+            <span class="subtext">Across garages in this scope</span>
           </div>
           <div class="kpi-card-simple">
-            <span class="label">Current availability</span>
-            <strong class="value">{{ store.parkingData.totalAvailableGarageSpaces }}</strong>
-            <span class="subtext">Open slots</span>
+            <span class="label">Capacity in use</span>
+            <strong class="value">{{ (store.parkingData.parkingCapacityUtilizationPercent ?? 0).toFixed(1) }}%</strong>
+            <span class="subtext"
+              >{{ store.parkingData.totalParkingSpotsTaken ?? 0 }} / {{ store.parkingData.totalGarageSpaces }} spaces in
+              scope</span
+            >
           </div>
           <div class="kpi-card-simple">
-            <span class="label">Occupancy (scope)</span>
-            <strong class="value">{{ store.parkingData.garageUtilizationRate }}</strong>
-            <span class="subtext">Load in current filter</span>
+            <span class="label">Paid sessions</span>
+            <strong class="value">{{ store.parkingData.paidParkingSessions ?? 0 }}</strong>
+            <span class="subtext"
+              >Avg. ${{
+                (store.parkingData.averageParkingPayment ?? 0).toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })
+              }}
+              per session · {{ store.parkingData.totalGarages }} garage(s)</span
+            >
           </div>
         </div>
       </section>
 
-      <div class="main-grid">
-        <div class="ops-column">
-          <section class="panel-card-clean">
-            <div class="panel-header">
-              <h3>Facility capacity</h3>
-              <p>Live occupancy for garages in the selected scope.</p>
-            </div>
-            <div class="garage-list-clean">
-              <div
-                v-for="garage in store.parkingData.garageDetails"
-                :key="`${garageScopeKey}-${garage.id}`"
-                class="garage-row"
-              >
-                <div class="info">
-                  <span class="name">{{ garage.name }}</span>
-                  <span class="meta">{{ garage.availableSpaces }} / {{ garage.totalSpaces }} spots available</span>
-                </div>
+      <div class="charts-grid">
+        <section class="panel-card-clean">
+          <div class="panel-header">
+            <h3>Spots taken by facility</h3>
+            <p>Occupied spaces per garage (capacity minus available slots) in the current scope.</p>
+          </div>
+          <div v-if="parkingAreaRows.length === 0" class="empty-state">No garages in this scope.</div>
+          <div v-else class="bar-chart">
+            <div v-for="row in parkingAreaRows" :key="'s-' + row.garageId" class="bar-row">
+              <span class="bar-label" :title="row.areaName">{{ row.areaName }}</span>
+              <div class="bar-track">
                 <div
-                  class="load-badge"
-                  :class="availabilityColor(garage.availableSpaces, garage.totalSpaces)"
-                >
-                  {{ pctFull(garage) }}% Full
-                </div>
+                  class="bar-fill bar-volume"
+                  :style="{ width: barPct(row.spotsTaken, maxSpotsTaken) + '%' }"
+                />
               </div>
-              <div v-if="store.parkingData.garageDetails.length === 0" class="empty-state">
-                No garages in this scope.
-              </div>
+              <span class="bar-value">{{ row.spotsTaken }}</span>
             </div>
-          </section>
-        </div>
+          </div>
+        </section>
+
+        <section class="panel-card-clean">
+          <div class="panel-header">
+            <h3>Revenue by facility</h3>
+            <p>
+              Implied value from current occupancy: occupied spots × flat rate (matches utilization). Recorded
+              payments from reservations are shown in the snapshot.
+            </p>
+          </div>
+          <div v-if="parkingAreaRows.length === 0" class="empty-state">No garages in this scope.</div>
+          <div v-else class="bar-chart">
+            <div v-for="row in parkingAreaRows" :key="'r-' + row.garageId" class="bar-row">
+              <span class="bar-label" :title="row.areaName">{{ row.areaName }}</span>
+              <div class="bar-track">
+                <div
+                  class="bar-fill bar-revenue"
+                  :style="{ width: barPct(row.occupancyImpliedRevenue, maxImpliedRevenue) + '%' }"
+                />
+              </div>
+              <span class="bar-value"
+                >${{
+                  row.occupancyImpliedRevenue.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })
+                }}</span
+              >
+            </div>
+          </div>
+        </section>
+
+        <section class="panel-card-clean">
+          <div class="panel-header">
+            <h3>Active reservation spots</h3>
+            <p>Spots currently tied to ACTIVE reservations per facility.</p>
+          </div>
+          <div v-if="parkingAreaRows.length === 0" class="empty-state">No garages in this scope.</div>
+          <div v-else class="bar-chart">
+            <div v-for="row in parkingAreaRows" :key="'a-' + row.garageId" class="bar-row">
+              <span class="bar-label" :title="row.areaName">{{ row.areaName }}</span>
+              <div class="bar-track">
+                <div
+                  class="bar-fill bar-city"
+                  :style="{ width: barPct(row.activeReservationSpots, maxActiveSpots) + '%' }"
+                />
+              </div>
+              <span class="bar-value">{{ row.activeReservationSpots }}</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel-card-clean">
+          <div class="panel-header">
+            <h3>Utilization by facility</h3>
+            <p>Share of each garage’s capacity that is currently occupied.</p>
+          </div>
+          <div v-if="parkingAreaRows.length === 0" class="empty-state">No garages in this scope.</div>
+          <div v-else class="bar-chart">
+            <div v-for="row in parkingAreaRows" :key="'u-' + row.garageId" class="bar-row">
+              <span class="bar-label" :title="row.areaName">{{ row.areaName }}</span>
+              <div class="bar-track">
+                <div
+                  class="bar-fill bar-top"
+                  :style="{ width: barPct(row.capacityUtilizationPercent, 100) + '%' }"
+                />
+              </div>
+              <span class="bar-value">{{ row.capacityUtilizationPercent.toFixed(1) }}%</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel-card-clean panel-span-2">
+          <div class="panel-header">
+            <h3>Facility snapshot</h3>
+            <p>
+              Occupancy and implied value at the listed flat rate; recorded reservation payments shown separately.
+            </p>
+          </div>
+          <div class="stat-list">
+            <div v-for="row in parkingAreaRows" :key="row.garageId" class="clean-row">
+              <span class="name">
+                {{ row.areaName
+                }}<span v-if="row.addressSnippet" class="addr-snippet"> · {{ row.addressSnippet }}</span>
+              </span>
+              <strong class="qty">
+                {{ row.spotsTaken }} / {{ row.spotsTotal }} occ. · {{ row.activeReservationSpots }} live ·
+                {{ row.capacityUtilizationPercent.toFixed(1) }}% · implied ${{
+                  row.occupancyImpliedRevenue.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })
+                }}
+                · recorded ${{
+                  row.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                }}
+              </strong>
+            </div>
+            <div v-if="parkingAreaRows.length === 0" class="empty-state">No garages in this scope.</div>
+          </div>
+        </section>
       </div>
     </main>
   </div>
@@ -573,17 +763,30 @@ onMounted(async () => {
   line-height: 1.35;
 }
 
-.main-grid {
+.charts-grid {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 2rem;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.25rem;
+}
+
+.panel-span-2 {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 900px) {
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .panel-span-2 {
+    grid-column: 1;
+  }
 }
 
 .panel-card-clean {
   padding: 1.5rem;
   border: 1px solid #f1f5f9;
   border-radius: 12px;
-  margin-bottom: 1.5rem;
   background: #fff;
 }
 
@@ -601,59 +804,101 @@ onMounted(async () => {
   line-height: 1.45;
 }
 
-.garage-list-clean {
+.stat-list {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
 }
 
-.garage-row {
+.clean-row {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding: 1rem;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  font-size: 0.9rem;
   border-bottom: 1px solid #f8fafc;
 }
 
-.garage-row:last-child {
+.clean-row:last-child {
   border-bottom: none;
 }
 
-.garage-row .info {
-  display: flex;
-  flex-direction: column;
+.clean-row .name {
+  color: #475569;
+  font-weight: 600;
 }
 
-.garage-row .name {
+.clean-row .qty {
   font-weight: 700;
   color: #0f172a;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
-.garage-row .meta {
-  font-size: 0.8rem;
-  color: #64748b;
+.addr-snippet {
+  font-weight: 500;
+  color: #94a3b8;
+  font-size: 0.82rem;
 }
 
-.load-badge {
-  padding: 0.25rem 0.6rem;
-  border-radius: 4px;
-  font-size: 0.75rem;
+.bar-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.bar-row {
+  display: grid;
+  grid-template-columns: minmax(0, 120px) 1fr auto;
+  gap: 0.65rem;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.bar-label {
+  color: #475569;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bar-track {
+  height: 10px;
+  background: #f1f5f9;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.35s ease;
+  min-width: 2px;
+}
+
+.bar-volume {
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+}
+
+.bar-revenue {
+  background: linear-gradient(90deg, #10b981, #34d399);
+}
+
+.bar-city {
+  background: linear-gradient(90deg, #8b5cf6, #a78bfa);
+}
+
+.bar-top {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+.bar-value {
   font-weight: 700;
-}
-
-.load-badge.green {
-  background: #f0fdf4;
-  color: #10b981;
-}
-
-.load-badge.orange {
-  background: #fffbeb;
-  color: #f59e0b;
-}
-
-.load-badge.red {
-  background: #fef2f2;
-  color: #ef4444;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+  min-width: 3.5rem;
+  text-align: right;
 }
 
 .state-msg {
@@ -663,10 +908,12 @@ onMounted(async () => {
 }
 
 .empty-state {
+  padding: 2rem 1rem;
   text-align: center;
-  padding: 2rem;
   color: #94a3b8;
-  font-style: italic;
+  font-size: 0.9rem;
+  background: #f8fafc;
+  border-radius: 8px;
 }
 
 @keyframes pulse {

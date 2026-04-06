@@ -18,10 +18,12 @@ public class ParkingGarage {
     private double longitude;
     private int totalSpaces;
     private int availableSpaces;
+    /** Flat rate in dollars (e.g. per entry or standard session). */
+    private double flatRate;
 
     public ParkingGarage() {}
 
-    public ParkingGarage(String id, String providerId, String name, String address, double latitude, double longitude, int totalSpaces, int availableSpaces) {
+    public ParkingGarage(String id, String providerId, String name, String address, double latitude, double longitude, int totalSpaces, int availableSpaces, double flatRate) {
         this.id = id;
         this.providerId = providerId != null ? providerId : CITY_INFRA_PROVIDER_ID;
         this.name = name;
@@ -30,11 +32,17 @@ public class ParkingGarage {
         this.longitude = longitude;
         this.totalSpaces = totalSpaces;
         this.availableSpaces = availableSpaces;
+        this.flatRate = Math.max(0, flatRate);
+    }
+
+    /** Convenience: zero flat rate. */
+    public ParkingGarage(String id, String providerId, String name, String address, double latitude, double longitude, int totalSpaces, int availableSpaces) {
+        this(id, providerId, name, address, latitude, longitude, totalSpaces, availableSpaces, 0);
     }
 
     /** Legacy constructor for city-owned garages. */
     public ParkingGarage(String id, String name, String address, double latitude, double longitude, int totalSpaces, int availableSpaces) {
-        this(id, CITY_INFRA_PROVIDER_ID, name, address, latitude, longitude, totalSpaces, availableSpaces);
+        this(id, CITY_INFRA_PROVIDER_ID, name, address, latitude, longitude, totalSpaces, availableSpaces, 0);
     }
 
     public String getId() { return id; }
@@ -60,4 +68,7 @@ public class ParkingGarage {
 
     public String getAddress() { return address; }
     public void setAddress(String address) { this.address = address; }
+
+    public double getFlatRate() { return flatRate; }
+    public void setFlatRate(double flatRate) { this.flatRate = Math.max(0, flatRate); }
 }

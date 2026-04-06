@@ -45,6 +45,21 @@ export interface RentalAnalytics {
   topVehicles: Record<string, number>
 }
 
+export interface ParkingAreaBreakdownRow {
+  garageId: string
+  areaName: string
+  addressSnippet?: string
+  spotsTaken: number
+  spotsTotal: number
+  activeReservationSpots: number
+  /** Payments recorded on reservations (non-cancelled). */
+  revenue: number
+  /** Occupied spots × flat rate — aligns utilization with “should have earned” for sensor-style occupancy. */
+  occupancyImpliedRevenue: number
+  flatRate?: number
+  capacityUtilizationPercent: number
+}
+
 export interface ParkingAnalytics {
   // Rental zone info
   totalVehicles: number
@@ -60,7 +75,19 @@ export interface ParkingAnalytics {
   totalGarageSpaces: number
   totalAvailableGarageSpaces: number
   garageUtilizationRate: string
-  garageDetails: Array<{ id: string, name: string, totalSpaces: number, availableSpaces: number }>
+  garageDetails: Array<{ id: string, name: string, address?: string, totalSpaces: number, availableSpaces: number, flatRate?: number }>
+  totalParkingRevenue?: number
+  /** Sum of occupancyImpliedRevenue across garages in scope. */
+  totalOccupancyImpliedRevenue?: number
+  paidParkingSessions?: number
+  averageParkingPayment?: number
+  parkingRevenueByGarageId?: Record<string, number>
+  topParkingGaragesByRevenue?: Array<{ garageId: string, garageName: string, revenue: number, paidSessions: number }>
+  bestParkingGarage?: Record<string, unknown>
+  totalParkingSpotsTaken?: number
+  activeParkingSpotsInScope?: number
+  parkingCapacityUtilizationPercent?: number
+  parkingAreaBreakdown?: ParkingAreaBreakdownRow[]
 }
 
 // ── Store ──────────────────────────────────────────────────────────────────

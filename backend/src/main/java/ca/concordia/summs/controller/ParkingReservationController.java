@@ -37,14 +37,25 @@ public class ParkingReservationController {
                     spots = Integer.parseInt(String.valueOf(body.get("spots")).trim());
                 }
             }
-            ParkingReservation r = parkingReservationService.reserve(userId, garageId, spots);
+            Object paymentRaw = body.get("paymentInfo");
+            String paymentInfo = paymentRaw == null ? "" : String.valueOf(paymentRaw).trim();
+            boolean savePaymentMethod = false;
+            if (body.get("savePaymentMethod") instanceof Boolean b) {
+                savePaymentMethod = b;
+            } else if (body.get("savePaymentMethod") != null) {
+                savePaymentMethod = Boolean.parseBoolean(String.valueOf(body.get("savePaymentMethod")));
+            }
+            ParkingReservation r = parkingReservationService.reserve(userId, garageId, spots, paymentInfo, savePaymentMethod);
             return ResponseEntity.ok(Map.of(
                     "id", r.getId(),
                     "userId", r.getUserId(),
                     "garageId", r.getGarageId(),
                     "spots", r.getSpots(),
                     "status", r.getStatus().name(),
-                    "startTime", r.getStartTime().toString()
+                    "startTime", r.getStartTime().toString(),
+                    "paymentMethod", r.getReservationPaymentMethod(),
+                    "paymentAmount", r.getReservationPaymentAmount(),
+                    "paymentStatus", r.getReservationPaymentStatus()
             ));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));

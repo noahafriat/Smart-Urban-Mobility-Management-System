@@ -30,16 +30,19 @@ public class ParkingGarageService {
     }
 
     private void seed() {
+        // All facilities start completely empty: every spot available (occupancy only changes via reservations).
         addInternal(new ParkingGarage("pg1", UserRepository.CITY_ADMIN_USER_ID, "Eaton Centre Parking",
-                "705 Sainte-Catherine Ouest, Montreal", 45.5035, -73.5714, 250, 42));
+                "705 Sainte-Catherine Ouest, Montreal", 45.5035, -73.5714, 250, 250, 18.5));
         addInternal(new ParkingGarage("pg2", UserRepository.CITY_ADMIN_USER_ID, "Quartier des Spectacles Auto-Parc",
-                "1435 Rue de Bleury, Montreal", 45.5088, -73.5658, 400, 115));
+                "1435 Rue de Bleury, Montreal", 45.5088, -73.5658, 400, 400, 22));
         addInternal(new ParkingGarage("pg3", UserRepository.CITY_ADMIN_USER_ID, "Old Port Clock Tower Parking",
-                "1 Quai de l'Horloge, Montreal", 45.5103, -73.5484, 500, 320));
+                "1 Quai de l'Horloge, Montreal", 45.5103, -73.5484, 500, 500, 12));
         addInternal(new ParkingGarage("pg4", UserRepository.CITY_ADMIN_USER_ID, "Bell Centre Garage",
-                "1225 Avenue des Canadiens-de-Montreal, Montreal", 45.4960, -73.5693, 300, 10));
+                "1225 Avenue des Canadiens-de-Montreal, Montreal", 45.4960, -73.5693, 300, 300, 28));
         addInternal(new ParkingGarage("pg5", UserRepository.CITY_ADMIN_USER_ID, "Plateau Station Parking",
-                "4100 Rue Saint-Denis, Montreal", 45.5230, -73.5851, 150, 90));
+                "4100 Rue Saint-Denis, Montreal", 45.5230, -73.5851, 150, 150, 15));
+        addInternal(new ParkingGarage("pg-pp-1", "parking-provider-id", "Riverside Commerce Parking",
+                "1800 Rue Notre-Dame Ouest, Montreal", 45.4890, -73.5850, 120, 120, 19.0));
     }
 
     private void addInternal(ParkingGarage g) {
@@ -89,8 +92,11 @@ public class ParkingGarageService {
         if (available > total) {
             throw new IllegalArgumentException("availableSpaces cannot exceed totalSpaces.");
         }
+        double flatRate = body.get("flatRate") != null
+                ? requireNonNegativeDouble(body.get("flatRate"), "flatRate")
+                : 0.0;
         String id = "pg-" + UUID.randomUUID();
-        ParkingGarage g = new ParkingGarage(id, providerId, name, address, lat, lon, total, available);
+        ParkingGarage g = new ParkingGarage(id, providerId, name, address, lat, lon, total, available, flatRate);
         garagesById.put(id, g);
         return g;
     }
@@ -105,6 +111,7 @@ public class ParkingGarageService {
         if (body.containsKey("address")) g.setAddress(String.valueOf(body.get("address")).trim());
         if (body.containsKey("latitude")) g.setLatitude(requireDouble(body.get("latitude"), "latitude"));
         if (body.containsKey("longitude")) g.setLongitude(requireDouble(body.get("longitude"), "longitude"));
+        if (body.containsKey("flatRate")) g.setFlatRate(requireNonNegativeDouble(body.get("flatRate"), "flatRate"));
         if (body.containsKey("totalSpaces")) {
             int newTotal = requirePositiveInt(body.get("totalSpaces"), "totalSpaces");
             int held = parkingReservationService.sumActiveSpotsForGarage(garageId);
@@ -165,5 +172,11 @@ public class ParkingGarageService {
         if (v == null) throw new IllegalArgumentException(field + " is required.");
         if (v instanceof Number n) return Math.max(0, n.intValue());
         return Integer.parseInt(String.valueOf(v).trim());
+    }
+
+    private static double requireNonNegativeDouble(Object v, String field) {
+        double d = requireDouble(v, field);
+        if (d < 0) throw new IllegalArgumentException(field + " cannot be negative.");
+        return d;
     }
 }

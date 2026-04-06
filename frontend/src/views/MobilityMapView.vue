@@ -31,6 +31,7 @@ interface ParkingGarage {
   longitude: number
   totalSpaces: number
   availableSpaces: number
+  flatRate?: number
 }
 
 interface ScooterDock {
@@ -270,10 +271,14 @@ function renderLayers() {
     if (station.lat === qLat && station.lon === qLng && showBixi.value) targetMarker = marker
   }
 
+  function garageFlatRate(g: ParkingGarage): string {
+    return (typeof g.flatRate === 'number' ? g.flatRate : 0).toFixed(2)
+  }
+
   function bindGaragePopup(garage: ParkingGarage, label: string) {
     const src = isMunicipalGarage(garage.providerId) ? 'City' : 'Partner'
     const addr = garage.address ? `<br><small>${garage.address}</small>` : ''
-    return `<strong>${garage.name}</strong> <span style="opacity:.75">(${label} · ${src})</span>${addr}<br>Available: ${garage.availableSpaces} / ${garage.totalSpaces}<br><br><button data-path="/parking-spaces?selectedId=${garage.id}" class="popup-btn">View details →</button>`
+    return `<strong>${garage.name}</strong> <span style="opacity:.75">(${label} · ${src})</span>${addr}<br>Flat rate: $${garageFlatRate(garage)} · Available: ${garage.availableSpaces} / ${garage.totalSpaces}<br><br><button data-path="/parking-spaces?selectedId=${garage.id}" class="popup-btn">View details →</button>`
   }
 
   if (garagePortfolioViewer.value) {
@@ -317,6 +322,7 @@ function renderLayers() {
     for (const garage of garages.value) {
       const src = isMunicipalGarage(garage.providerId) ? 'City' : 'Partner'
       const addr = garage.address ? `<br><small>${garage.address}</small>` : ''
+      const rate = (typeof garage.flatRate === 'number' ? garage.flatRate : 0).toFixed(2)
       const marker = L.circleMarker([garage.latitude, garage.longitude], {
         radius: 8,
         color: '#b91c1c',
@@ -324,7 +330,7 @@ function renderLayers() {
         fillOpacity: 0.9,
         weight: 2,
       }).bindPopup(
-        `<strong>${garage.name}</strong> <span style="opacity:.75">(${src})</span>${addr}<br>Available: ${garage.availableSpaces} / ${garage.totalSpaces}<br><br><button data-path="/parking-spaces?selectedId=${garage.id}" class="popup-btn">View details →</button>`
+        `<strong>${garage.name}</strong> <span style="opacity:.75">(${src})</span>${addr}<br>Flat rate: $${rate} · Available: ${garage.availableSpaces} / ${garage.totalSpaces}<br><br><button data-path="/parking-spaces?selectedId=${garage.id}" class="popup-btn">View details →</button>`
       )
       marker.on('click', () => focusOnMarker(garage.latitude, garage.longitude))
       garageLayer.addLayer(marker)
