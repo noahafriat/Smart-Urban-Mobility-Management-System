@@ -1,4 +1,4 @@
-package ca.concordia.summs.pattern.strategy;
+package ca.concordia.summs.pattern.strategy.payment;
 
 import org.springframework.stereotype.Component;
 import org.springframework.core.annotation.Order;

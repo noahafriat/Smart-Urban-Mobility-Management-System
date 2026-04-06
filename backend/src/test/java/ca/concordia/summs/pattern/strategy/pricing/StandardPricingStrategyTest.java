@@ -1,4 +1,4 @@
-package ca.concordia.summs.pattern.strategy;
+package ca.concordia.summs.pattern.strategy.pricing;
 
 import ca.concordia.summs.model.Rental;
 import ca.concordia.summs.model.Scooter;

@@ -1,24 +1,12 @@
 package ca.concordia.summs.pattern.factory;
-
 import ca.concordia.summs.model.*;
 
-import java.util.UUID;
+public abstract class VehicleFactory {
 
-// Factory Method pattern implementation for creating different vehicle types.
-// Helps decouple the creation logic from the calling service.
-
-public class VehicleFactory {
-
-    public static Vehicle createVehicle(VehicleType type, String providerId, String locationCity) {
-        switch (type) {
-            case SCOOTER:
-                return new Scooter(providerId, locationCity);
-            case CAR:
-                // Generate a random mock license plate for cars
-                String license = "QC-" + UUID.randomUUID().toString().substring(0, 5).toUpperCase();
-                return new Car(providerId, locationCity, license);
-            default:
-                throw new IllegalArgumentException("Unknown vehicle type: " + type);
-        }
+    public Vehicle orderVehicle(String providerId, String locationCity) {
+        Vehicle vehicle = createVehicle(providerId, locationCity);
+        return vehicle;
     }
+    
+    protected abstract Vehicle createVehicle(String providerId, String locationCity);
 }

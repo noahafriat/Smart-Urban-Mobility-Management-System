@@ -1,4 +1,4 @@
-package ca.concordia.summs.pattern.strategy;
+package ca.concordia.summs.pattern.strategy.payment;
 
 /**
  * Shared fake-card validation for brand-specific payment strategies.

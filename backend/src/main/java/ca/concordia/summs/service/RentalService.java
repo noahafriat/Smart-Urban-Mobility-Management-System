@@ -6,9 +6,9 @@ import ca.concordia.summs.repository.UserRepository;
 import ca.concordia.summs.repository.VehicleRepository;
 import ca.concordia.summs.pattern.observer.RentalSubject;
 import ca.concordia.summs.pattern.observer.AnalyticsObserver;
-import ca.concordia.summs.pattern.strategy.PaymentStrategy;
-import ca.concordia.summs.pattern.strategy.PricingStrategy;
-import ca.concordia.summs.pattern.strategy.StandardPricingStrategy;
+import ca.concordia.summs.pattern.strategy.payment.PaymentStrategy;
+import ca.concordia.summs.pattern.strategy.pricing.PricingStrategy;
+import ca.concordia.summs.pattern.strategy.pricing.StandardPricingStrategy;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
