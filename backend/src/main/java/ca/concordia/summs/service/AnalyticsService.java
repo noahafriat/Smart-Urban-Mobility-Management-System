@@ -344,6 +344,12 @@ public class AnalyticsService {
         Map<String, Double> parkingRevenueByGarageId = new LinkedHashMap<>();
         revenueAccum.forEach((k, v) -> parkingRevenueByGarageId.put(k, Math.round(v * 100.0) / 100.0));
 
+        Map<String, Integer> parkingSessionsByGarageId = new LinkedHashMap<>();
+        for (ParkingGarage g : garageList) {
+            int n = sessionsPerGarage.getOrDefault(g.getId(), 0L).intValue();
+            parkingSessionsByGarageId.put(g.getId(), n);
+        }
+
         List<Map<String, Object>> topParkingGaragesByRevenue = revenueAccum.entrySet().stream()
                 .sorted((a, b) -> Double.compare(b.getValue(), a.getValue()))
                 .limit(5)
@@ -385,11 +391,12 @@ public class AnalyticsService {
             row.put("flatRate", Math.round(flat * 100.0) / 100.0);
             row.put("revenue", Math.round(recordedRev * 100.0) / 100.0);
             row.put("occupancyImpliedRevenue", impliedRev);
+            row.put("allTimeReservations", parkingSessionsByGarageId.getOrDefault(g.getId(), 0));
             int tot = g.getTotalSpaces();
             row.put("capacityUtilizationPercent", tot == 0 ? 0.0 : Math.round((spotsTaken * 1000.0 / tot)) / 10.0);
             parkingAreaBreakdown.add(row);
         }
-        parkingAreaBreakdown.sort((a, b) -> Integer.compare((Integer) b.get("spotsTaken"), (Integer) a.get("spotsTaken")));
+        parkingAreaBreakdown.sort((a, b) -> Integer.compare((Integer) b.get("allTimeReservations"), (Integer) a.get("allTimeReservations")));
         totalOccupancyImpliedRevenue = Math.round(totalOccupancyImpliedRevenue * 100.0) / 100.0;
 
         Map<String, Object> result = new LinkedHashMap<>();
@@ -411,6 +418,7 @@ public class AnalyticsService {
         result.put("paidParkingSessions", paidParkingSessions);
         result.put("averageParkingPayment", averageParkingPayment);
         result.put("parkingRevenueByGarageId", parkingRevenueByGarageId);
+        result.put("parkingSessionsByGarageId", parkingSessionsByGarageId);
         result.put("topParkingGaragesByRevenue", topParkingGaragesByRevenue);
         result.put("bestParkingGarage", bestParkingGarage);
         result.put("totalParkingSpotsTaken", totalParkingSpotsTaken);

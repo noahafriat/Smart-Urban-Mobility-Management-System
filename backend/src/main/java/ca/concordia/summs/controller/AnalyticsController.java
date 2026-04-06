@@ -25,7 +25,7 @@ public class AnalyticsController {
 
     /**
      * UC-18: Monitor Transit Usage Analytics
-     * Intended for City Admin and System Admin roles.
+     * Intended for City Admin and System Admin (enforced in the frontend).
      * GET /api/analytics/transit
      */
     @GetMapping("/transit")

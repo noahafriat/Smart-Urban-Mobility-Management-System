@@ -141,7 +141,7 @@ const auth = useAuthStore()
             auth.isParkingProvider && !auth.isAdmin
               ? 'Capacity and occupancy for your garages — same analytics view as city oversight, limited to your account.'
               : auth.isCityAdmin && !auth.isSysAdmin
-                ? 'Municipal parking tools and analytics for facilities you manage.'
+                ? 'Municipal parking, transit usage, and analytics for facilities you manage.'
                 : 'Monitor transit, rentals, and manage user roles.'
           }}
         </p>

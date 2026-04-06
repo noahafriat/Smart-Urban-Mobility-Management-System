@@ -84,7 +84,7 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
-      // Transit Analytics (System Admin only)
+      // Transit Analytics (System Admin and City Admin)
       path: '/analytics/transit',
       name: 'analytics-transit',
       component: () => import('../views/TransitAnalyticsView.vue'),

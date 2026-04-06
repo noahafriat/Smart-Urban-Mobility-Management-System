@@ -101,12 +101,14 @@ const parkingAreaRows = computed(() => {
         occupancyImpliedRevenue: implied,
         flatRate: flat,
         capacityUtilizationPercent: Number(r.capacityUtilizationPercent) || 0,
+        allTimeReservations: Number(r.allTimeReservations) || 0,
       }
     })
   }
 
   const gd = data.garageDetails ?? []
   const revMap = data.parkingRevenueByGarageId ?? {}
+  const sessionsMap = data.parkingSessionsByGarageId ?? {}
   if (gd.length === 0) return []
 
   return gd.map((g) => {
@@ -116,6 +118,8 @@ const parkingAreaRows = computed(() => {
     const flat = Number(g.flatRate) || 0
     const implied = Math.round(spotsTaken * flat * 100) / 100
     const rev = typeof revMap[g.id] === 'number' ? revMap[g.id]! : 0
+    const allTimeReservations =
+      typeof sessionsMap[g.id] === 'number' ? Math.round(sessionsMap[g.id]!) : 0
     const addr = g.address ? truncateAddr(String(g.address)) : ''
     const util = tot === 0 ? 0 : Math.round((spotsTaken * 1000) / tot) / 10
     return {
@@ -129,22 +133,17 @@ const parkingAreaRows = computed(() => {
       occupancyImpliedRevenue: implied,
       flatRate: flat,
       capacityUtilizationPercent: util,
+      allTimeReservations,
     }
   })
 })
 
-const maxSpotsTaken = computed(() =>
-  parkingAreaRows.value.reduce((m, r) => Math.max(m, r.spotsTaken), 0),
+const maxAllTimeReservations = computed(() =>
+  parkingAreaRows.value.reduce((m, r) => Math.max(m, r.allTimeReservations), 0),
 )
-const maxImpliedRevenue = computed(() =>
-  parkingAreaRows.value.reduce((m, r) => Math.max(m, r.occupancyImpliedRevenue), 0),
+const maxRecordedRevenue = computed(() =>
+  parkingAreaRows.value.reduce((m, r) => Math.max(m, r.revenue), 0),
 )
-
-const totalImpliedRevenueKpi = computed(() => {
-  const t = store.parkingData?.totalOccupancyImpliedRevenue
-  if (typeof t === 'number' && Number.isFinite(t)) return t
-  return Math.round(parkingAreaRows.value.reduce((s, r) => s + r.occupancyImpliedRevenue, 0) * 100) / 100
-})
 const maxActiveSpots = computed(() =>
   parkingAreaRows.value.reduce((m, r) => Math.max(m, r.activeReservationSpots), 0),
 )
@@ -240,12 +239,6 @@ onUnmounted(() => {
               : 'Real-time capacity for garages — filter by city-owned facilities or a parking operator.'
           }}
         </p>
-      </div>
-      <div class="header-actions">
-        <button class="btn-refresh" :disabled="store.loading" @click="refreshParking()">
-          <span v-if="store.loading">Refreshing...</span>
-          <span v-else>↻ Sync Sensors</span>
-        </button>
       </div>
     </header>
 
@@ -349,10 +342,10 @@ onUnmounted(() => {
             >
           </div>
           <div class="kpi-card-simple">
-            <span class="label">Value at flat rate (occupied)</span>
+            <span class="label">Parking revenue</span>
             <strong class="value"
               >${{
-                totalImpliedRevenueKpi.toLocaleString(undefined, {
+                (store.parkingData.totalParkingRevenue ?? 0).toLocaleString(undefined, {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })
@@ -387,8 +380,8 @@ onUnmounted(() => {
       <div class="charts-grid">
         <section class="panel-card-clean">
           <div class="panel-header">
-            <h3>Spots taken by facility</h3>
-            <p>Occupied spaces per garage (capacity minus available slots) in the current scope.</p>
+            <h3>All-time reservations by facility</h3>
+            <p>Count of non-cancelled parking reservations per garage in this scope (active and completed).</p>
           </div>
           <div v-if="parkingAreaRows.length === 0" class="empty-state">No garages in this scope.</div>
           <div v-else class="bar-chart">
@@ -397,10 +390,10 @@ onUnmounted(() => {
               <div class="bar-track">
                 <div
                   class="bar-fill bar-volume"
-                  :style="{ width: barPct(row.spotsTaken, maxSpotsTaken) + '%' }"
+                  :style="{ width: barPct(row.allTimeReservations, maxAllTimeReservations) + '%' }"
                 />
               </div>
-              <span class="bar-value">{{ row.spotsTaken }}</span>
+              <span class="bar-value">{{ row.allTimeReservations }}</span>
             </div>
           </div>
         </section>
@@ -408,10 +401,7 @@ onUnmounted(() => {
         <section class="panel-card-clean">
           <div class="panel-header">
             <h3>Revenue by facility</h3>
-            <p>
-              Implied value from current occupancy: occupied spots × flat rate (matches utilization). Recorded
-              payments from reservations are shown in the snapshot.
-            </p>
+            <p>Payments from non-cancelled reservations, per garage in this scope.</p>
           </div>
           <div v-if="parkingAreaRows.length === 0" class="empty-state">No garages in this scope.</div>
           <div v-else class="bar-chart">
@@ -420,12 +410,12 @@ onUnmounted(() => {
               <div class="bar-track">
                 <div
                   class="bar-fill bar-revenue"
-                  :style="{ width: barPct(row.occupancyImpliedRevenue, maxImpliedRevenue) + '%' }"
+                  :style="{ width: barPct(row.revenue, maxRecordedRevenue) + '%' }"
                 />
               </div>
               <span class="bar-value"
                 >${{
-                  row.occupancyImpliedRevenue.toLocaleString(undefined, {
+                  row.revenue.toLocaleString(undefined, {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
                   })
@@ -478,9 +468,7 @@ onUnmounted(() => {
         <section class="panel-card-clean panel-span-2">
           <div class="panel-header">
             <h3>Facility snapshot</h3>
-            <p>
-              Occupancy and implied value at the listed flat rate; recorded reservation payments shown separately.
-            </p>
+            <p>Share of each facility’s capacity that is occupied (spots taken ÷ total spaces).</p>
           </div>
           <div class="stat-list">
             <div v-for="row in parkingAreaRows" :key="row.garageId" class="clean-row">
@@ -488,18 +476,7 @@ onUnmounted(() => {
                 {{ row.areaName
                 }}<span v-if="row.addressSnippet" class="addr-snippet"> · {{ row.addressSnippet }}</span>
               </span>
-              <strong class="qty">
-                {{ row.spotsTaken }} / {{ row.spotsTotal }} occ. · {{ row.activeReservationSpots }} live ·
-                {{ row.capacityUtilizationPercent.toFixed(1) }}% · implied ${{
-                  row.occupancyImpliedRevenue.toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })
-                }}
-                · recorded ${{
-                  row.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                }}
-              </strong>
+              <strong class="qty">{{ row.capacityUtilizationPercent.toFixed(1) }}%</strong>
             </div>
             <div v-if="parkingAreaRows.length === 0" class="empty-state">No garages in this scope.</div>
           </div>
@@ -520,11 +497,6 @@ onUnmounted(() => {
 
 .page-header {
   margin-bottom: 2rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
-  flex-wrap: wrap;
 }
 
 .header-main h1 {
@@ -564,31 +536,6 @@ onUnmounted(() => {
   border-radius: 999px;
   background: #eff6ff;
   color: #1d4ed8;
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-}
-
-.btn-refresh {
-  padding: 0.6rem 1.25rem;
-  font-size: 0.9rem;
-  font-weight: 600;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: white;
-  cursor: pointer;
-  transition: 0.2s;
-}
-
-.btn-refresh:hover:not(:disabled) {
-  background: #f8fafc;
-}
-
-.btn-refresh:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 .scope-toolbar {

@@ -56,6 +56,8 @@ export interface ParkingAreaBreakdownRow {
   revenue: number
   /** Occupied spots × flat rate — aligns utilization with “should have earned” for sensor-style occupancy. */
   occupancyImpliedRevenue: number
+  /** Non-cancelled reservations in scope (lifetime count per garage). */
+  allTimeReservations: number
   flatRate?: number
   capacityUtilizationPercent: number
 }
@@ -82,12 +84,99 @@ export interface ParkingAnalytics {
   paidParkingSessions?: number
   averageParkingPayment?: number
   parkingRevenueByGarageId?: Record<string, number>
+  /** Session counts per garage (non-cancelled, same scope as analytics). */
+  parkingSessionsByGarageId?: Record<string, number>
   topParkingGaragesByRevenue?: Array<{ garageId: string, garageName: string, revenue: number, paidSessions: number }>
   bestParkingGarage?: Record<string, unknown>
   totalParkingSpotsTaken?: number
   activeParkingSpotsInScope?: number
   parkingCapacityUtilizationPercent?: number
   parkingAreaBreakdown?: ParkingAreaBreakdownRow[]
+}
+
+function coerceNum(v: unknown): number {
+  if (v == null || v === '') return 0
+  if (typeof v === 'number') return Number.isFinite(v) ? v : 0
+  const n = Number(v)
+  return Number.isFinite(n) ? n : 0
+}
+
+function coerceInt(v: unknown): number {
+  return Math.round(coerceNum(v))
+}
+
+function normalizeParkingRevenueByGarageId(m: unknown): Record<string, number> {
+  if (m == null || typeof m !== 'object' || Array.isArray(m)) return {}
+  const out: Record<string, number> = {}
+  for (const [k, val] of Object.entries(m as Record<string, unknown>)) {
+    out[String(k)] = coerceNum(val)
+  }
+  return out
+}
+
+function normalizeGarageDetails(arr: unknown): ParkingAnalytics['garageDetails'] {
+  if (!Array.isArray(arr)) return []
+  return arr.map((g: Record<string, unknown>) => ({
+    id: String(g.id ?? g.garageId ?? ''),
+    name: String(g.name ?? ''),
+    address: g.address != null ? String(g.address) : undefined,
+    totalSpaces: coerceInt(g.totalSpaces),
+    availableSpaces: coerceInt(g.availableSpaces),
+    flatRate: g.flatRate != null ? coerceNum(g.flatRate) : undefined,
+  }))
+}
+
+function normalizeParkingAreaBreakdown(arr: unknown): ParkingAreaBreakdownRow[] {
+  if (!Array.isArray(arr)) return []
+  return arr.map((row: Record<string, unknown>) => {
+    const spotsTaken = coerceInt(row.spotsTaken)
+    const flat = coerceNum(row.flatRate)
+    const hasImpliedKey = row.occupancyImpliedRevenue != null && String(row.occupancyImpliedRevenue) !== ''
+    const implied = hasImpliedKey
+      ? coerceNum(row.occupancyImpliedRevenue)
+      : Math.round(spotsTaken * flat * 100) / 100
+    return {
+      garageId: String(row.garageId ?? ''),
+      areaName: String(row.areaName ?? ''),
+      addressSnippet: row.addressSnippet != null ? String(row.addressSnippet) : '',
+      spotsTaken,
+      spotsTotal: coerceInt(row.spotsTotal),
+      activeReservationSpots: coerceInt(row.activeReservationSpots),
+      revenue: coerceNum(row.revenue),
+      occupancyImpliedRevenue: implied,
+      flatRate: flat,
+      capacityUtilizationPercent: coerceNum(row.capacityUtilizationPercent),
+      allTimeReservations: coerceInt(row.allTimeReservations),
+    }
+  })
+}
+
+function normalizeParkingPayload(raw: Record<string, unknown>): ParkingAnalytics {
+  const base = raw as unknown as ParkingAnalytics
+  const revByGarage = normalizeParkingRevenueByGarageId(raw.parkingRevenueByGarageId)
+  const sessionsByGarage = normalizeParkingRevenueByGarageId(raw.parkingSessionsByGarageId)
+  const breakdown = normalizeParkingAreaBreakdown(raw.parkingAreaBreakdown)
+  const garageDetails = normalizeGarageDetails(raw.garageDetails)
+
+  return {
+    ...base,
+    totalVehicles: coerceInt(raw.totalVehicles),
+    totalAvailableInZones: coerceInt(raw.totalAvailableInZones),
+    totalGarages: coerceInt(raw.totalGarages),
+    totalGarageSpaces: coerceInt(raw.totalGarageSpaces),
+    totalAvailableGarageSpaces: coerceInt(raw.totalAvailableGarageSpaces),
+    totalParkingRevenue: coerceNum(raw.totalParkingRevenue),
+    totalOccupancyImpliedRevenue: coerceNum(raw.totalOccupancyImpliedRevenue),
+    paidParkingSessions: coerceInt(raw.paidParkingSessions),
+    averageParkingPayment: coerceNum(raw.averageParkingPayment),
+    totalParkingSpotsTaken: coerceInt(raw.totalParkingSpotsTaken),
+    activeParkingSpotsInScope: coerceInt(raw.activeParkingSpotsInScope),
+    parkingCapacityUtilizationPercent: coerceNum(raw.parkingCapacityUtilizationPercent),
+    parkingRevenueByGarageId: revByGarage,
+    parkingSessionsByGarageId: sessionsByGarage,
+    parkingAreaBreakdown: breakdown,
+    garageDetails,
+  }
 }
 
 // ── Store ──────────────────────────────────────────────────────────────────
@@ -143,11 +232,8 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       if (requesterId) params.requesterId = requesterId
       const res = await api.get('/analytics/parking', { params })
       if (seq !== parkingFetchSeq) return
-      const raw = res.data as ParkingAnalytics
-      parkingData.value = {
-        ...raw,
-        garageDetails: Array.isArray(raw.garageDetails) ? [...raw.garageDetails] : [],
-      }
+      const raw = res.data as Record<string, unknown>
+      parkingData.value = normalizeParkingPayload(raw)
     } catch (e: any) {
       if (seq !== parkingFetchSeq) return
       error.value = e.response?.data?.error || 'Failed to load parking analytics'
