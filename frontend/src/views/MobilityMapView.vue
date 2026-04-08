@@ -275,10 +275,11 @@ function renderLayers() {
     return (typeof g.flatRate === 'number' ? g.flatRate : 0).toFixed(2)
   }
 
-  function bindGaragePopup(garage: ParkingGarage, label: string) {
+  function bindGaragePopup(garage: ParkingGarage, label: string, isMine: boolean) {
     const src = isMunicipalGarage(garage.providerId) ? 'City' : 'Partner'
     const addr = garage.address ? `<br><small>${garage.address}</small>` : ''
-    return `<strong>${garage.name}</strong> <span style="opacity:.75">(${label} · ${src})</span>${addr}<br>Flat rate: $${garageFlatRate(garage)} · Available: ${garage.availableSpaces} / ${garage.totalSpaces}<br><br><button data-path="/parking-spaces?selectedId=${garage.id}" class="popup-btn">View details →</button>`
+    const targetPath = isMine ? '/admin/parking' : '/parking-spaces'
+    return `<strong>${garage.name}</strong> <span style="opacity:.75">(${label} · ${src})</span>${addr}<br>Flat rate: $${garageFlatRate(garage)} · Available: ${garage.availableSpaces} / ${garage.totalSpaces}<br><br><button data-path="${targetPath}?selectedId=${garage.id}" class="popup-btn">View details →</button>`
   }
 
   if (garagePortfolioViewer.value) {
@@ -289,7 +290,7 @@ function renderLayers() {
         fillColor: '#38bdf8',
         fillOpacity: 0.95,
         weight: 2,
-      }).bindPopup(bindGaragePopup(garage, 'Your garage'))
+      }).bindPopup(bindGaragePopup(garage, 'Your garage', true))
       marker.on('click', () => focusOnMarker(garage.latitude, garage.longitude))
       myParkingLayer!.addLayer(marker)
       if (
@@ -307,7 +308,7 @@ function renderLayers() {
         fillColor: '#fb923c',
         fillOpacity: 0.9,
         weight: 2,
-      }).bindPopup(bindGaragePopup(garage, 'Other operator'))
+      }).bindPopup(bindGaragePopup(garage, 'Other operator', false))
       marker.on('click', () => focusOnMarker(garage.latitude, garage.longitude))
       otherParkingLayer!.addLayer(marker)
       if (

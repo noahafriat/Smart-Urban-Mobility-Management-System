@@ -240,6 +240,12 @@ onUnmounted(() => {
           }}
         </p>
       </div>
+      <div class="header-actions">
+        <button class="btn-refresh" :disabled="store.loading" @click="refreshParking()">
+          <span v-if="store.loading">Refreshing...</span>
+          <span v-else>↻ Update Data</span>
+        </button>
+      </div>
     </header>
 
     <div v-if="store.loading && !store.parkingData" class="state-msg pulse">
@@ -464,23 +470,6 @@ onUnmounted(() => {
             </div>
           </div>
         </section>
-
-        <section class="panel-card-clean panel-span-2">
-          <div class="panel-header">
-            <h3>Facility snapshot</h3>
-            <p>Share of each facility’s capacity that is occupied (spots taken ÷ total spaces).</p>
-          </div>
-          <div class="stat-list">
-            <div v-for="row in parkingAreaRows" :key="row.garageId" class="clean-row">
-              <span class="name">
-                {{ row.areaName
-                }}<span v-if="row.addressSnippet" class="addr-snippet"> · {{ row.addressSnippet }}</span>
-              </span>
-              <strong class="qty">{{ row.capacityUtilizationPercent.toFixed(1) }}%</strong>
-            </div>
-            <div v-if="parkingAreaRows.length === 0" class="empty-state">No garages in this scope.</div>
-          </div>
-        </section>
       </div>
     </main>
   </div>
@@ -497,6 +486,10 @@ onUnmounted(() => {
 
 .page-header {
   margin-bottom: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
 }
 
 .header-main h1 {
@@ -536,6 +529,28 @@ onUnmounted(() => {
   border-radius: 999px;
   background: #eff6ff;
   color: #1d4ed8;
+}
+
+.btn-refresh {
+  padding: 0.6rem 1.25rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+  color: #334155;
+  cursor: pointer;
+  transition: 0.2s;
+  white-space: nowrap;
+}
+
+.btn-refresh:hover:not(:disabled) {
+  background: #f8fafc;
+}
+
+.btn-refresh:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .scope-toolbar {

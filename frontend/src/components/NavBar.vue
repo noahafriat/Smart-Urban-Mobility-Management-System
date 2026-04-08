@@ -20,17 +20,30 @@ function doLogout() {
 
       <div class="nav-links" v-if="auth.isLoggedIn">
         <RouterLink to="/dashboard">Dashboard</RouterLink>
-        <RouterLink to="/mobility-map">Map</RouterLink>
-        <RouterLink v-if="auth.isCitizen" to="/public-transport">STM &amp; transit</RouterLink>
+
+        <!-- Citizen links -->
+        <RouterLink v-if="auth.isCitizen" to="/mobility-map">Map</RouterLink>
+        <RouterLink v-if="auth.isCitizen" to="/public-transport">STM &amp; Transit</RouterLink>
         <RouterLink v-if="auth.isCitizen" to="/vehicles">Search Vehicles</RouterLink>
         <RouterLink v-if="auth.isCitizen" to="/bixi">BIXI Bikes</RouterLink>
         <RouterLink v-if="auth.isCitizen" to="/parking-spaces">Parking Garages</RouterLink>
         <RouterLink v-if="auth.isCitizen" to="/rentals">My Rentals</RouterLink>
         <RouterLink v-if="auth.isCitizen" to="/settings">Settings</RouterLink>
+
+        <!-- Car / Scooter Provider links -->
+        <RouterLink v-if="auth.isProvider && !auth.isParkingProvider" to="/admin/fleet">Fleet</RouterLink>
+        <RouterLink v-if="auth.isProvider && !auth.isParkingProvider" to="/mobility-map">Map</RouterLink>
+        <RouterLink v-if="auth.isProvider && !auth.isParkingProvider" to="/analytics/rentals">Rentals</RouterLink>
+        <RouterLink v-if="auth.isProvider && !auth.isParkingProvider" to="/settings">Settings</RouterLink>
+
+        <!-- Parking Provider / Admin links -->
+        <RouterLink v-if="auth.canManageParkingGarages" to="/admin/parking">Manage Parking</RouterLink>
+        <RouterLink v-if="auth.isParkingProvider || auth.isAdmin" to="/mobility-map">Map</RouterLink>
         <RouterLink v-if="auth.canViewTransitAnalytics" to="/analytics/transit">Transit</RouterLink>
-        <RouterLink v-if="auth.canViewRentalAnalytics" to="/analytics/rentals">Rentals</RouterLink>
+        <RouterLink v-if="auth.canViewRentalAnalytics && !auth.isProvider" to="/analytics/rentals">Rentals</RouterLink>
         <RouterLink v-if="auth.canViewParkingAnalytics" to="/analytics/parking">Parking</RouterLink>
         <RouterLink v-if="auth.isSysAdmin" to="/admin/users" class="admin-link">Users</RouterLink>
+        <RouterLink v-if="auth.isAdmin || auth.isParkingProvider" to="/settings">Settings</RouterLink>
       </div>
 
       <div class="nav-actions">
