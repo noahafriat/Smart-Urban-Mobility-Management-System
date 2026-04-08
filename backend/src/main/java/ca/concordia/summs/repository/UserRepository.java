@@ -55,9 +55,9 @@ public class UserRepository {
     // Demo accounts
 
     private void seed() {
-        User alice = new User("Test Account",   "test@summs.ca", "password123", UserRole.CITIZEN);
-        alice.setPaymentInfo("VISA-4242");
-        save(alice);
+        User user = new User("Test Account",   "noahafri12@gmail.com", "password123", UserRole.CITIZEN);
+        user.setPaymentInfo("VISA-4242");
+        save(user);
 
         User admin = new User(CITY_ADMIN_USER_ID, "City Admin", "admin@summs.ca", "admin123", UserRole.CITY_ADMIN);
         save(admin);

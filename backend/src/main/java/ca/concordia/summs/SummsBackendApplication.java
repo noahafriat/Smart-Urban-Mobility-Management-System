@@ -7,6 +7,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+@org.springframework.scheduling.annotation.EnableAsync
 @SpringBootApplication
 public class SummsBackendApplication {
 
