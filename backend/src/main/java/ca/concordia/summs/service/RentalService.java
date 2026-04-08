@@ -22,6 +22,7 @@ public class RentalService extends RentalSubject {
     private final UserRepository userRepository;
     private final List<PaymentStrategy> paymentStrategies;
     private final List<PricingStrategy> pricingStrategies;
+    private final EmailService emailService;
     
     // Automatically wires the AnalyticsObserver to this Subject
     public RentalService(RentalRepository rentalRepository, 
@@ -29,12 +30,14 @@ public class RentalService extends RentalSubject {
                          UserRepository userRepository,
                          List<PaymentStrategy> paymentStrategies,
                          List<PricingStrategy> pricingStrategies,
-                         AnalyticsObserver analyticsObserver) {
+                         AnalyticsObserver analyticsObserver,
+                         EmailService emailService) {
         this.rentalRepository = rentalRepository;
         this.vehicleRepository = vehicleRepository;
         this.userRepository = userRepository;
         this.paymentStrategies = paymentStrategies;
         this.pricingStrategies = pricingStrategies;
+        this.emailService = emailService;
         this.addObserver(analyticsObserver); // Subject registers its Observer
     }
 
@@ -76,7 +79,33 @@ public class RentalService extends RentalSubject {
         // Broadcast the event to any attached Observers!
         notifyRentalCreated(rental.getId(), vehicleId, userId);
         
+        // Send Email Confirmation
+        sendReservationEmail(user, rental);
+        
         return rental;
+    }
+
+    private void sendReservationEmail(User user, Rental rental) {
+        Vehicle v = rental.getVehicle();
+        String identifier = (v instanceof Car) ? "Plate: " + ((Car) v).getLicensePlate() : "Code: " + v.getVehicleCode();
+        
+        String subject = "Reservation Confirmation: " + v.getType() + " (" + (v instanceof Car ? ((Car) v).getLicensePlate() : v.getVehicleCode()) + ")";
+        String body = String.format(
+            "Hello %s,\n\nYour reservation for a %s is confirmed!\n\n" +
+            "Reservation ID: %s\n" +
+            "%s\n" +
+            "Model: %s\n" +
+            "Base Fee: $%.2f (Paid at reservation)\n" +
+            "Payment Method: %s\n\n" +
+            "Thank you for choosing SUMMS!",
+            user.getName(), v.getType(),
+            rental.getId(),
+            identifier,
+            v.getModel(),
+            rental.getReservationPaymentAmount(),
+            rental.getReservationPaymentMethod()
+        );
+        emailService.sendEmail(user.getEmail(), subject, body);
     }
 
     public Rental returnVehicle(String rentalId) {
@@ -124,7 +153,46 @@ public class RentalService extends RentalSubject {
         rental.setFinalPaymentProcessedAt(LocalDateTime.now());
         rental.setStatus(RentalStatus.PAID);
         rentalRepository.save(rental);
+
+        // Send Payment Receipt
+        User user = userRepository.findById(rental.getUserId()).orElse(null);
+        if (user != null) {
+            sendReceiptEmail(user, rental);
+        }
+
         return rental;
+    }
+
+    private void sendReceiptEmail(User user, Rental rental) {
+        Vehicle v = rental.getVehicle();
+        String identifier = (v instanceof Car) ? ((Car) v).getLicensePlate() : v.getVehicleCode();
+        
+        double baseFee = rental.getReservationPaymentAmount();
+        double usageFee = Math.max(0, rental.getTotalCost() - baseFee);
+        
+        String subject = "Payment Receipt: Rental " + rental.getId();
+        String body = String.format(
+            "Hello %s,\n\nThank you for your payment! Here is your receipt:\n\n" +
+            "Rental ID: %s\n" +
+            "Vehicle: %s (%s)\n\n" +
+            "--- Price Breakdown ---\n" +
+            "Base Reservation Fee: $%.2f\n" +
+            "Trip Usage Fee:      $%.2f\n" +
+            "-----------------------\n" +
+            "TOTAL PAID:          $%.2f\n\n" +
+            "Paid With: %s\n" +
+            "Date: %s\n\n" +
+            "We hope you enjoyed your ride!\nSUMMS Team",
+            user.getName(),
+            rental.getId(),
+            v.getType(), identifier,
+            baseFee,
+            usageFee,
+            rental.getTotalCost(),
+            rental.getFinalPaymentMethod(),
+            rental.getFinalPaymentProcessedAt().toString()
+        );
+        emailService.sendEmail(user.getEmail(), subject, body);
     }
     
     public List<Rental> getUserRentals(String userId) {

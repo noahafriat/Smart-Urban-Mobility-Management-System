@@ -23,14 +23,17 @@ public class ParkingReservationService {
     private final ParkingGarageService parkingGarageService;
     private final UserRepository userRepository;
     private final List<PaymentStrategy> paymentStrategies;
+    private final EmailService emailService;
     private final Map<String, ParkingReservation> reservationsById = new ConcurrentHashMap<>();
 
     public ParkingReservationService(ParkingGarageService parkingGarageService,
                                        UserRepository userRepository,
-                                       List<PaymentStrategy> paymentStrategies) {
+                                       List<PaymentStrategy> paymentStrategies,
+                                       EmailService emailService) {
         this.parkingGarageService = parkingGarageService;
         this.userRepository = userRepository;
         this.paymentStrategies = paymentStrategies;
+        this.emailService = emailService;
     }
 
     public long countActiveForGarage(String garageId) {
@@ -86,7 +89,33 @@ public class ParkingReservationService {
         garage.setAvailableSpaces(garage.getAvailableSpaces() - spots);
         ParkingReservation r = new ParkingReservation(userId, garageId, spots, paymentLabel, amount);
         reservationsById.put(r.getId(), r);
+
+        // Send Email Confirmation & Receipt
+        sendParkingConfirmationEmail(user, r, garage);
+
         return r;
+    }
+
+    private void sendParkingConfirmationEmail(User user, ParkingReservation r, ParkingGarage garage) {
+        String subject = "Parking Confirmation & Receipt: " + garage.getName();
+        String body = String.format(
+            "Hello %s,\n\nYour parking reservation at %s is confirmed and paid!\n\n" +
+            "Reservation ID: %s\n" +
+            "Garage: %s (%s)\n" +
+            "Spots: %d\n" +
+            "Total Paid: $%.2f\n" +
+            "Payment Method: %s\n" +
+            "Processed At: %s\n\n" +
+            "Thank you for using SUMMS!",
+            user.getName(), garage.getName(),
+            r.getId(),
+            garage.getName(), garage.getAddress(),
+            r.getSpots(),
+            r.getReservationPaymentAmount(),
+            r.getReservationPaymentMethod(),
+            r.getReservationPaymentProcessedAt().toString()
+        );
+        emailService.sendEmail(user.getEmail(), subject, body);
     }
 
     public synchronized ParkingReservation complete(String userId, String reservationId) {

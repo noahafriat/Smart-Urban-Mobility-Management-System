@@ -39,6 +39,8 @@ class RentalServiceTest {
     private UserRepository userRepository;
     @Mock
     private AnalyticsObserver analyticsObserver;
+    @Mock
+    private EmailService emailService;
 
     private RentalService rentalService;
 
@@ -50,7 +52,8 @@ class RentalServiceTest {
                 userRepository,
                 List.of(new VisaPaymentStrategy()),
                 List.of(new StandardPricingStrategy()),
-                analyticsObserver);
+                analyticsObserver,
+                emailService);
     }
 
     @Test
