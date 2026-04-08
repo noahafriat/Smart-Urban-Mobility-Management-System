@@ -5,8 +5,10 @@
  */
 import { computed, onMounted } from 'vue'
 import { useAnalyticsStore } from '../stores/analytics'
+import { useAuthStore } from '../stores/auth'
 
 const store = useAnalyticsStore()
+const auth = useAuthStore()
 
 const fleetTotal = computed(() => {
   if (!store.transitData) return 0
@@ -55,6 +57,11 @@ onMounted(() => {
   store.fetchTransit()
   store.fetchGateway()
 })
+
+function refresh() {
+  store.fetchTransit()
+  store.fetchGateway()
+}
 </script>
 
 <template>
@@ -65,6 +72,9 @@ onMounted(() => {
         <h1>Transit Analytics</h1>
         <p>A cleaner snapshot of ridership, fleet status, revenue, and gateway health.</p>
       </div>
+      <button class="refresh-btn" @click="refresh" :disabled="store.loading">
+        {{ store.loading ? 'Refreshing...' : 'Refresh' }}
+      </button>
     </header>
 
     <div v-if="store.loading && !store.transitData" class="state-msg pulse">
@@ -75,7 +85,7 @@ onMounted(() => {
     <main v-else-if="store.transitData" class="analytics-body">
       
       <!-- ── Primary Mobility KPIs ── -->
-      <section class="kpi-banner">
+      <section v-if="auth.isSysAdmin" class="kpi-banner">
         <div class="kpi-grid">
           <div class="kpi-card-simple">
             <span class="label">Total Trips Today</span>
@@ -96,7 +106,7 @@ onMounted(() => {
       </section>
 
       <div class="charts-grid">
-        <section class="panel-card-clean panel-span-2">
+        <section v-if="auth.isSysAdmin" class="panel-card-clean panel-span-2">
           <div class="panel-header">
             <h3>Fleet status</h3>
             <p>Current split of available, in-use, and maintenance vehicles.</p>
@@ -115,7 +125,7 @@ onMounted(() => {
           </div>
         </section>
 
-        <section class="panel-card-clean">
+        <section v-if="auth.isSysAdmin" class="panel-card-clean">
           <div class="panel-header">
             <h3>Trips by type</h3>
           </div>
@@ -131,7 +141,7 @@ onMounted(() => {
           </div>
         </section>
 
-        <section class="panel-card-clean">
+        <section v-if="auth.isSysAdmin" class="panel-card-clean">
           <div class="panel-header">
             <h3>Trips by city</h3>
           </div>
@@ -147,7 +157,7 @@ onMounted(() => {
           </div>
         </section>
 
-        <section class="panel-card-clean">
+        <section v-if="auth.isSysAdmin" class="panel-card-clean">
           <div class="panel-header">
             <h3>Revenue by city</h3>
           </div>
@@ -211,10 +221,13 @@ onMounted(() => {
   color: #334155;
 }
 
-.page-header { margin-bottom: 2rem; }
+.page-header { margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
 .header-main h1 { font-size: 2rem; font-weight: 800; color: #0f172a; margin: 0 0 0.5rem; letter-spacing: -0.02em; }
 .header-main p { color: #64748b; font-size: 1rem; margin: 0; }
 .view-tag { font-size: 0.7rem; font-weight: 700; color: #3b82f6; text-transform: uppercase; margin-bottom: 0.5rem; display: block; }
+.refresh-btn { font-size: 0.85rem; font-weight: 700; color: #334155; background: #f1f5f9; border: 1px solid #e2e8f0; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; transition: 0.2s; white-space: nowrap; }
+.refresh-btn:not(:disabled):hover { background: #e2e8f0; }
+.refresh-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 /* ── KPIs ── */
 .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.25rem; margin-bottom: 1.5rem; }

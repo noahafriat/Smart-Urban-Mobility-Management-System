@@ -86,8 +86,8 @@ function showSuccess(msg: string) {
 <template>
   <div class="settings-view fade-in">
     <header class="page-header">
-      <span class="view-tag">Profile & Finance</span>
-      <h1>Citizen Settings</h1>
+      <span class="view-tag">{{ auth.isCitizen ? 'Profile & Finance' : 'Account' }}</span>
+      <h1>{{ auth.isCitizen ? 'Citizen Settings' : 'Account Settings' }}</h1>
     </header>
 
     <div v-if="successMsg" class="alert success">{{ successMsg }}</div>
@@ -120,8 +120,8 @@ function showSuccess(msg: string) {
         </form>
       </section>
 
-      <!-- ── Payments Section ── -->
-      <section class="wallet-section">
+      <!-- ── Payments Section (Citizens only) ── -->
+      <section v-if="auth.isCitizen" class="wallet-section">
         <header class="card-header">
           <h2>Digital Wallet</h2>
           <p>Managed linked payment methods.</p>

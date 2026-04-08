@@ -36,7 +36,7 @@ export const useAuthStore = defineStore('auth', () => {
   )
   // Parking analytics: system admin sees all scopes; city admin and parking operators use the same page scoped to their garages.
   const canViewParkingAnalytics = computed(() => isAdmin.value || isParkingProvider.value)
-  /** Transit usage dashboard — system and city administrators. */
+  /** Transit usage dashboard — System Admin + City Admin (BIXI only). */
   const canViewTransitAnalytics = computed(() => isSysAdmin.value || isCityAdmin.value)
   /** CRUD on parking garages (municipal inventory for city admin; commercial for parking providers). */
   const canManageParkingGarages = computed(() => isCityAdmin.value || isParkingProvider.value)

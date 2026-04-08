@@ -99,6 +99,73 @@ const auth = useAuthStore()
       </div>
     </main>
 
+    <!-- ── Car / Scooter Provider Hub ── -->
+    <div v-if="auth.isProvider && !auth.isParkingProvider" class="admin-container">
+      <header class="hub-header">
+        <div class="governance-badge">Operator Tools</div>
+        <h2>{{ auth.user?.providerType === 'CAR' ? 'Car Fleet Hub' : 'Scooter Fleet Hub' }}</h2>
+        <p>Manage your vehicle inventory, monitor rentals, and track earnings.</p>
+      </header>
+
+      <div class="admin-grid">
+        <!-- Fleet Map -->
+        <div class="card admin-feature">
+          <header class="card-header">
+            <div class="icon-box info">🗺️</div>
+            <div class="header-text">
+              <h2>Fleet Map</h2>
+              <p>Live map showing only your {{ auth.user?.providerType === 'CAR' ? 'cars' : 'scooters' }} on the ground.</p>
+            </div>
+          </header>
+          <div class="card-footer">
+            <RouterLink to="/mobility-map" class="action-btn" style="background: #0f766e;">Open Fleet Map</RouterLink>
+          </div>
+        </div>
+
+        <!-- Fleet Operations -->
+        <div class="card admin-feature">
+          <header class="card-header">
+            <div class="icon-box success">{{ auth.user?.providerType === 'CAR' ? '🚗' : '🛴' }}</div>
+            <div class="header-text">
+              <h2>Fleet Operations</h2>
+              <p>View and manage all your vehicles. Update availability, pricing, and status.</p>
+            </div>
+          </header>
+          <div class="card-footer">
+            <RouterLink to="/admin/fleet" class="action-btn">Manage Fleet</RouterLink>
+          </div>
+        </div>
+
+        <!-- Rental Analytics -->
+        <div class="card admin-feature">
+          <header class="card-header">
+            <div class="icon-box warning">💰</div>
+            <div class="header-text">
+              <h2>Rental Analytics</h2>
+              <p>Track revenue, rental duration, and usage trends for your fleet.</p>
+            </div>
+          </header>
+          <div class="card-footer">
+            <RouterLink to="/analytics/rentals" class="action-btn">View Rental Stats</RouterLink>
+          </div>
+        </div>
+
+        <!-- Account Settings -->
+        <div class="card admin-feature">
+          <header class="card-header">
+            <div class="icon-box">⚙️</div>
+            <div class="header-text">
+              <h2>Account Settings</h2>
+              <p>Update your profile and payment information.</p>
+            </div>
+          </header>
+          <div class="card-footer">
+            <RouterLink to="/settings" class="action-btn">Manage Account</RouterLink>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ── Administrative / operator hub ── -->
     <div v-if="auth.isAdmin || auth.isSysAdmin || auth.isParkingProvider" class="admin-container">
       <header class="hub-header">
@@ -127,6 +194,20 @@ const auth = useAuthStore()
           </header>
           <div class="card-footer">
             <RouterLink to="/admin/fleet" class="action-btn">Manage Fleet</RouterLink>
+          </div>
+        </div>
+
+        <!-- Garage Map -->
+        <div class="card admin-feature">
+          <header class="card-header">
+            <div class="icon-box info">🗺️</div>
+            <div class="header-text">
+              <h2>Parking Map</h2>
+              <p>Live map showing your garages (cyan) vs other operators (orange).</p>
+            </div>
+          </header>
+          <div class="card-footer">
+            <RouterLink to="/mobility-map" class="action-btn" style="background: #0f766e;">Open Parking Map</RouterLink>
           </div>
         </div>
 
@@ -205,6 +286,20 @@ const auth = useAuthStore()
           </header>
           <div class="card-footer">
             <RouterLink to="/admin/users" class="action-btn danger">Manage Users</RouterLink>
+          </div>
+        </div>
+
+        <!-- Account Settings (all non-citizen roles in this hub) -->
+        <div class="card admin-feature">
+          <header class="card-header">
+            <div class="icon-box">⚙️</div>
+            <div class="header-text">
+              <h2>Account Settings</h2>
+              <p>Update your personal profile and contact information.</p>
+            </div>
+          </header>
+          <div class="card-footer">
+            <RouterLink to="/settings" class="action-btn">Manage Account</RouterLink>
           </div>
         </div>
       </div>

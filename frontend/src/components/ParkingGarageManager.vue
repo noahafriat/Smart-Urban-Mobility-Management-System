@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { api } from '../api'
 
 export interface ParkingGarageRow {
@@ -18,6 +19,7 @@ const props = defineProps<{
   providerId: string
 }>()
 
+const route = useRoute()
 const loading = ref(false)
 const errorMsg = ref('')
 const garages = ref<ParkingGarageRow[]>([])
@@ -50,6 +52,13 @@ async function loadAll() {
     ])
     garages.value = listRes.data
     Object.assign(summary, sumRes.data)
+
+    const targetId = route.query.selectedId
+    if (targetId) {
+      setTimeout(() => {
+        document.getElementById(`garage-card-${targetId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 200)
+    }
   } catch (e: any) {
     errorMsg.value = e.response?.data?.error ?? e.message ?? 'Failed to load garages'
   } finally {
@@ -161,7 +170,7 @@ function occupied(g: ParkingGarageRow) {
 
     <div class="garage-list">
       <p v-if="!loading && garages.length === 0" class="empty">No garages yet — add your first location.</p>
-      <article v-for="g in garages" :key="g.id" class="garage-card">
+      <article v-for="g in garages" :key="g.id" :id="`garage-card-${g.id}`" class="garage-card" :class="{ 'highlight': route.query.selectedId === g.id }">
         <header>
           <h3>{{ g.name }}</h3>
           <span class="pill">{{ g.availableSpaces }} / {{ g.totalSpaces }} free</span>
@@ -315,6 +324,13 @@ function occupied(g: ParkingGarageRow) {
   border: 1px solid #e2e8f0;
   border-radius: 14px;
   padding: 1.15rem;
+  transition: all 0.3s ease;
+}
+
+.garage-card.highlight {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+  background: #f8fafc;
 }
 
 .garage-card header {

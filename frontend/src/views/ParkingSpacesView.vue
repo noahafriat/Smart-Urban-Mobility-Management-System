@@ -220,16 +220,7 @@ async function completeReservation(r: EnrichedReservation) {
   }
 }
 
-async function cancelReservation(r: EnrichedReservation) {
-  if (!auth.user?.id) return
-  try {
-    await api.post(`/parking-reservations/${r.id}/cancel`, { userId: auth.user.id })
-    await fetchGarages()
-    await fetchMyReservations()
-  } catch (e: any) {
-    window.alert(e.response?.data?.error ?? e.message ?? 'Could not cancel')
-  }
-}
+
 
 const getAvailabilityClass = (available: number, total: number) => {
   if (total === 0) return 'empty'
@@ -272,7 +263,6 @@ const getAvailabilityClass = (available: number, total: number) => {
           </div>
           <div class="res-btns">
             <button type="button" class="btn-done" @click="completeReservation(r)">End stay</button>
-            <button type="button" class="btn-cancel" @click="cancelReservation(r)">Cancel</button>
           </div>
         </li>
       </ul>
@@ -562,16 +552,6 @@ const getAvailabilityClass = (available: number, total: number) => {
   font-weight: 600;
   cursor: pointer;
 }
-
-.btn-cancel {
-  padding: 0.45rem 0.85rem;
-  border-radius: 8px;
-  border: 1px solid #cbd5e1;
-  background: white;
-  font-weight: 600;
-  cursor: pointer;
-}
-
 .back-btn {
   padding: 0.75rem 1.5rem;
   background: #edf2f7;
