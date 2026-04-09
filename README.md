@@ -9,13 +9,13 @@
 
 ### **Team Members**
 
-| Name | Student ID | Role |
-| :--- | :--- | :--- |
-| **Noah Afriat** | 40276193 | **Team Leader** / Full Stack Developer |
-| **Robert Mounsef** | 40279248 | Backend Developer |
-| **Jakson Rabinovitch** | 40285726 | Backend Developer |
-| **Paul Nasr** | 40282491 | Frontend Developer |
-| **Tala Khraim** | 40276410 | Frontend Developer |
+| Name | Student ID | GitHub username | Role |
+| :--- | :--- | :--- | :--- |
+| **Noah Afriat** | 40276193 | noahafriat | **Team Leader** / Full Stack Developer |
+| **Robert Mounsef** | 40279248 | RobertMounsef | Backend Developer |
+| **Jakson Rabinovitch** | 40285726 | Jaksonrab | Backend Developer |
+| **Paul Nasr** | 40282491 | paulnasr | Frontend Developer |
+| **Tala Khraim** | 40276410 | talakhraim | Frontend Developer |
 
 ---
 
